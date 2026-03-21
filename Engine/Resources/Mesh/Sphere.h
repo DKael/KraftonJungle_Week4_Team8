@@ -388,7 +388,7 @@ static const FVertexSimple sphere_vertices[] =
     { 0.000000f, 0.000000f, -1.000000f },
 };
 
-static const unsigned short sphere_indices[] =
+static const uint16_t sphere_indices[] =
 {
     0, 2, 1, 0, 1, 3, 0, 3, 4, 0, 4, 5,
     0, 5, 6, 0, 6, 7, 0, 7, 8, 0, 8, 9,
@@ -582,5 +582,5 @@ static const unsigned short sphere_indices[] =
     377, 381, 378, 378, 381, 379, 379, 381, 380, 380, 381, 362,
 };
 
-static const unsigned int sphere_vertex_count = 382;
-static const unsigned int sphere_index_count = 2280;
+static const uint32_t sphere_vertex_count = 382;
+static const uint32_t sphere_index_count = 2280;
