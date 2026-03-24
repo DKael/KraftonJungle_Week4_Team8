@@ -1,8 +1,10 @@
-cbuffer FFontConstants : register(b0)
+cbuffer FSpriteConstants : register(b0)
 {
     row_major float4x4 VP;
-    float4 TintColor;
 };
+
+Texture2D SpriteTexture : register(t0);
+SamplerState SpriteSampler : register(s0);
 
 struct VSInput
 {
@@ -18,20 +20,20 @@ struct PSInput
     float4 Color    : COLOR0;
 };
 
-Texture2D FontTexture : register(t0);
-SamplerState FontSampler : register(s0);
-
 PSInput VSMain(VSInput In)
 {
     PSInput Out;
-    Out.Position = mul(float4(In.Position, 1.0f), VP);
+
+    float4 WorldPosition = float4(In.Position, 1.0f);
+    Out.Position = mul(WorldPosition, VP);
     Out.UV = In.UV;
-    Out.Color = In.Color * TintColor;
+    Out.Color = In.Color;
+
     return Out;
 }
 
 float4 PSMain(PSInput In) : SV_TARGET
 {
-    float4 Sampled = FontTexture.Sample(FontSampler, In.UV);
-    return Sampled * In.Color;
+    float4 SampledColor = SpriteTexture.Sample(SpriteSampler, In.UV);
+    return SampledColor * In.Color;
 }
