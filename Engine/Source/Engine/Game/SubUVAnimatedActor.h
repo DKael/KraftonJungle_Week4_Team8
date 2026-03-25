@@ -1,22 +1,20 @@
 #pragma once
-
-#include "Engine/Game/Actor.h"
+#include "Actor.h"
 
 namespace Engine::Component
 {
     class UPrimitiveComponent;
     class USubUVAnimatedComponent;
-}
+} // namespace Engine::Component
 
-class ENGINE_API AEffectActor : public AActor
+class ENGINE_API ASubUVAnimatedActor : public AActor
 {
-    DECLARE_RTTI(AEffectActor, AActor)
-
+    DECLARE_RTTI(ASubUVAnimatedActor, AActor)
   public:
-    AEffectActor();
-    ~AEffectActor() override = default;
+    ASubUVAnimatedActor();
+    ~ASubUVAnimatedActor() override = default;
 
-    Engine::Component::USubUVAnimatedComponent* GetEffectComponent() const;
+    Engine::Component::USubUVAnimatedComponent* GetSubUVAnimatedComponent() const;
 
     bool           IsRenderable() const override;
     bool           IsSelected() const override;
