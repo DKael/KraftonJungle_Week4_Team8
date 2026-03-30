@@ -31,6 +31,7 @@ namespace Engine::Component
 
         WorldTransform.SetLocation(NewLocation);
         OnTransformChanged();
+        PropagateTransformChanged();
     }
 
     void USceneComponent::SetRelativeRotation(const FQuat& NewRotation)
@@ -42,6 +43,7 @@ namespace Engine::Component
 
         WorldTransform.SetRotation(NewRotation);
         OnTransformChanged();
+        PropagateTransformChanged();
     }
 
     void USceneComponent::SetRelativeRotation(const FRotator& NewRotation)
@@ -60,14 +62,15 @@ namespace Engine::Component
         AbsScale.Y = std::max(NewScale.Y, 0.0001f);
         AbsScale.Z = std::max(NewScale.Z, 0.0001f);
         WorldTransform.SetScale3D(AbsScale);
-        
         OnTransformChanged();
+        PropagateTransformChanged();
     }
 
     void USceneComponent::SetRelativeTransform(const FVector& NewTransform)
     {
         WorldTransform.SetScale3D(NewTransform);
         OnTransformChanged();
+        PropagateTransformChanged();
     }
 
     void USceneComponent::SetOwnerActor(AActor* InOwnerActor)
@@ -145,6 +148,18 @@ namespace Engine::Component
         AttachParent = nullptr;
     }
 
+    void USceneComponent::PropagateTransformChanged()
+    {
+        for (USceneComponent* ChildComponent : AttachChildren)
+        {
+            if (ChildComponent != nullptr)
+            {
+                ChildComponent->OnTransformChanged();
+                ChildComponent->PropagateTransformChanged();
+            }
+        }
+    }
+
     void USceneComponent::Update(float DeltaTime) {}
 
     void USceneComponent::DescribeProperties(FComponentPropertyBuilder& Builder)
@@ -165,6 +180,26 @@ namespace Engine::Component
     FMatrix USceneComponent::GetRelativeMatrixNoScale() const
     {
         return WorldTransform.ToMatrixNoScale();
+    }
+
+    FMatrix USceneComponent::GetWorldMatrix() const
+    {
+        if (AttachParent == nullptr)
+        {
+            return GetRelativeMatrix();
+        }
+
+        return GetRelativeMatrix() * AttachParent->GetWorldMatrix();
+    }
+
+    FMatrix USceneComponent::GetWorldMatrixNoScale() const
+    {
+        if (AttachParent == nullptr)
+        {
+            return GetRelativeMatrixNoScale();
+        }
+
+        return GetRelativeMatrixNoScale() * AttachParent->GetWorldMatrixNoScale();
     }
 
     bool USceneComponent::IsSelected() const { return bIsSelected; }

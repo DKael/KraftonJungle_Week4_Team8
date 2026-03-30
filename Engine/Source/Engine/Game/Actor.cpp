@@ -140,7 +140,7 @@ FMatrix AActor::GetWorldMatrix() const
 {
     if (RootComponent != nullptr)
     {
-        return RootComponent->GetRelativeMatrix();
+        return RootComponent->GetWorldMatrix();
     }
 
     return FMatrix::Identity;

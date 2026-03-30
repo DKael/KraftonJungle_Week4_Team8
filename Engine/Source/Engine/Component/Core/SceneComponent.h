@@ -49,6 +49,8 @@ namespace Engine::Component
 
         FMatrix GetRelativeMatrix() const;
         FMatrix GetRelativeMatrixNoScale() const;
+        FMatrix GetWorldMatrix() const;
+        FMatrix GetWorldMatrixNoScale() const;
 
         bool IsSelected() const;
         void SetSelected(bool bInSelected);
@@ -60,9 +62,8 @@ namespace Engine::Component
         };
 
     protected:
-        virtual void OnTransformChanged()
-        {
-        }
+        virtual void OnTransformChanged() {}
+        void         PropagateTransformChanged();
 
       protected:
         bool bIsSelected = false;
