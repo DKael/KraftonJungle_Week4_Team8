@@ -337,7 +337,6 @@
     <None Include="Source\ThirdParty\ImGui\imgui.natstepfilter">
       <Filter>Source\ThirdParty\ImGui</Filter>
     </None>
-    <None Include="EditorClassDiagram.cd" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="Source\ThirdParty\ImGui\imgui.natvis">

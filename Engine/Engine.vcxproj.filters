@@ -46,6 +46,9 @@
     <Filter Include="Source\ApplicationCore\Windows">
       <UniqueIdentifier>{2548a85b-9fa1-e3d9-af0b-dee02015da10}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Asset\AssetLoader">
+      <UniqueIdentifier>{4ee525cf-2816-6303-ee58-9dda3acbc0ff}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Core\Containers">
       <UniqueIdentifier>{912017d8-8df8-694a-9f3f-b99826c544c4}</UniqueIdentifier>
     </Filter>
@@ -129,8 +132,23 @@
     <ClCompile Include="Source\Asset\Asset.cpp">
       <Filter>Source\Asset</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Asset\AssetLoader.cpp">
-      <Filter>Source\Asset</Filter>
+    <ClCompile Include="Source\Asset\AssetLoader\AssetLoader.cpp">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\AssetLoader\FontAtlasLoader.cpp">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\AssetLoader\MaterialLoader.cpp">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\AssetLoader\StaticMeshLoader.cpp">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\AssetLoader\SubUVAtlasLoader.cpp">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\AssetLoader\TextureLoader.cpp">
+      <Filter>Source\Asset\AssetLoader</Filter>
     </ClCompile>
     <ClCompile Include="Source\Asset\AssetManager.cpp">
       <Filter>Source\Asset</Filter>
@@ -138,19 +156,25 @@
     <ClCompile Include="Source\Asset\FontAsset.cpp">
       <Filter>Source\Asset</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Asset\FontAtlasLoader.cpp">
+    <ClCompile Include="Source\Asset\Material.cpp">
+      <Filter>Source\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\MaterialInstance.cpp">
+      <Filter>Source\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\MaterialInterface.cpp">
+      <Filter>Source\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\StaticMesh.cpp">
+      <Filter>Source\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Asset\StreamableRenderAsset.cpp">
       <Filter>Source\Asset</Filter>
     </ClCompile>
     <ClCompile Include="Source\Asset\SubUVAtlasAsset.cpp">
       <Filter>Source\Asset</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Asset\SubUVAtlasLoader.cpp">
-      <Filter>Source\Asset</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Asset\Texture2DAsset.cpp">
-      <Filter>Source\Asset</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Asset\TextureLoader.cpp">
       <Filter>Source\Asset</Filter>
     </ClCompile>
     <ClCompile Include="Source\Core\CoreGlobals.cpp">
@@ -204,6 +228,15 @@
     <ClCompile Include="Source\CoreUObject\ObjectFactory.cpp">
       <Filter>Source\CoreUObject</Filter>
     </ClCompile>
+    <ClCompile Include="Source\CoreUObject\UObjectArray.cpp">
+      <Filter>Source\CoreUObject</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\CoreUObject\UObjectIterator.cpp">
+      <Filter>Source\CoreUObject</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Component\Core\MeshComponent.cpp">
+      <Filter>Source\Engine\Component\Core</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Component\Core\PrimitiveComponent.cpp">
       <Filter>Source\Engine\Component\Core</Filter>
     </ClCompile>
@@ -213,25 +246,10 @@
     <ClCompile Include="Source\Engine\Component\Core\UnknownComponent.cpp">
       <Filter>Source\Engine\Component\Core</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Component\Mesh\ConeComponent.cpp">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Component\Mesh\CubeComponent.cpp">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Component\Mesh\CylinderComponent.cpp">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Engine\Component\Mesh\QuadComponent.cpp">
       <Filter>Source\Engine\Component\Mesh</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Component\Mesh\RingComponent.cpp">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Component\Mesh\SphereComponent.cpp">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Component\Mesh\TriangleComponent.cpp">
+    <ClCompile Include="Source\Engine\Component\Mesh\StaticMeshComponent.cpp">
       <Filter>Source\Engine\Component\Mesh</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Component\Sprite\AtlasComponent.cpp">
@@ -261,34 +279,22 @@
     <ClCompile Include="Source\Engine\Game\AtlasSpriteActor.cpp">
       <Filter>Source\Engine\Game</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Game\ConeActor.cpp">
-      <Filter>Source\Engine\Game</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Game\CubeActor.cpp">
-      <Filter>Source\Engine\Game</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Game\CylinderActor.cpp">
-      <Filter>Source\Engine\Game</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Engine\Game\EffectActor.cpp">
       <Filter>Source\Engine\Game</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Game\FlipbookActor.cpp">
       <Filter>Source\Engine\Game</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Game\RingActor.cpp">
-      <Filter>Source\Engine\Game</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Engine\Game\SphereActor.cpp">
+    <ClCompile Include="Source\Engine\Game\QuadActor.cpp">
       <Filter>Source\Engine\Game</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Game\SpriteActor.cpp">
       <Filter>Source\Engine\Game</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Game\TextActor.cpp">
+    <ClCompile Include="Source\Engine\Game\StaticMeshActor.cpp">
       <Filter>Source\Engine\Game</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Game\TriangleActor.cpp">
+    <ClCompile Include="Source\Engine\Game\TextActor.cpp">
       <Filter>Source\Engine\Game</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Game\UnknownActor.cpp">
@@ -318,6 +324,9 @@
     <ClCompile Include="Source\Renderer\D3D11\D3D11SpriteBatchRenderer.cpp">
       <Filter>Source\Renderer\D3D11</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Renderer\D3D11\D3D11StaticMeshRenderer.cpp">
+      <Filter>Source\Renderer\D3D11</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Renderer\D3D11\D3D11TextBatchRenderer.cpp">
       <Filter>Source\Renderer\D3D11</Filter>
     </ClCompile>
@@ -334,6 +343,9 @@
       <Filter>Source\Renderer\Submitter</Filter>
     </ClCompile>
     <ClCompile Include="Source\Renderer\Submitter\SpriteSubmitter.cpp">
+      <Filter>Source\Renderer\Submitter</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Renderer\Submitter\StaticMeshSubmitter.cpp">
       <Filter>Source\Renderer\Submitter</Filter>
     </ClCompile>
     <ClCompile Include="Source\Renderer\Submitter\TextSubmitter.cpp">
@@ -353,6 +365,12 @@
     </ClCompile>
     <ClCompile Include="Source\SceneIO\SceneTypeRegistry.cpp">
       <Filter>Source\SceneIO</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Core\Runtime\Slate\SWidget.cpp">
+      <Filter>Source\Core\Runtime\Slate</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Core\Runtime\Slate\Window\SWindow.cpp">
+      <Filter>Source\Core\Runtime\Slate\Window</Filter>
     </ClCompile>
     <ClCompile Include="Source\Core\Runtime\Slate\Window\SSplitter.cpp">
       <Filter>Source\Core\Runtime\Slate\Window</Filter>
@@ -417,8 +435,23 @@
     <ClInclude Include="Source\Asset\Asset.h">
       <Filter>Source\Asset</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Asset\AssetLoader.h">
-      <Filter>Source\Asset</Filter>
+    <ClInclude Include="Source\Asset\AssetLoader\AssetLoader.h">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\AssetLoader\FontAtlasLoader.h">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\AssetLoader\MaterialLoader.h">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\AssetLoader\StaticMeshLoader.h">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\AssetLoader\SubUVAtlasLoader.h">
+      <Filter>Source\Asset\AssetLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\AssetLoader\TextureLoader.h">
+      <Filter>Source\Asset\AssetLoader</Filter>
     </ClInclude>
     <ClInclude Include="Source\Asset\AssetManager.h">
       <Filter>Source\Asset</Filter>
@@ -426,19 +459,25 @@
     <ClInclude Include="Source\Asset\FontAsset.h">
       <Filter>Source\Asset</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Asset\FontAtlasLoader.h">
+    <ClInclude Include="Source\Asset\Material.h">
+      <Filter>Source\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\MaterialInstance.h">
+      <Filter>Source\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\MaterialInterface.h">
+      <Filter>Source\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\StaticMesh.h">
+      <Filter>Source\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Asset\StreamableRenderAsset.h">
       <Filter>Source\Asset</Filter>
     </ClInclude>
     <ClInclude Include="Source\Asset\SubUVAtlasAsset.h">
       <Filter>Source\Asset</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Asset\SubUVAtlasLoader.h">
-      <Filter>Source\Asset</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Asset\Texture2DAsset.h">
-      <Filter>Source\Asset</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Asset\TextureLoader.h">
       <Filter>Source\Asset</Filter>
     </ClInclude>
     <ClInclude Include="Source\Core\Containers\Array.h">
@@ -561,7 +600,16 @@
     <ClInclude Include="Source\CoreUObject\ObjectFactory.h">
       <Filter>Source\CoreUObject</Filter>
     </ClInclude>
+    <ClInclude Include="Source\CoreUObject\UObjectArray.h">
+      <Filter>Source\CoreUObject</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\CoreUObject\UObjectIterator.h">
+      <Filter>Source\CoreUObject</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Engine\Component\Core\ComponentProperty.h">
+      <Filter>Source\Engine\Component\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Component\Core\MeshComponent.h">
       <Filter>Source\Engine\Component\Core</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Component\Core\PrimitiveComponent.h">
@@ -573,25 +621,10 @@
     <ClInclude Include="Source\Engine\Component\Core\UnknownComponent.h">
       <Filter>Source\Engine\Component\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Component\Mesh\ConeComponent.h">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Component\Mesh\CubeComponent.h">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Component\Mesh\CylinderComponent.h">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Engine\Component\Mesh\QuadComponent.h">
       <Filter>Source\Engine\Component\Mesh</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Component\Mesh\RingComponent.h">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Component\Mesh\SphereComponent.h">
-      <Filter>Source\Engine\Component\Mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Component\Mesh\TriangleComponent.h">
+    <ClInclude Include="Source\Engine\Component\Mesh\StaticMeshComponent.h">
       <Filter>Source\Engine\Component\Mesh</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Component\Sprite\AtlasComponent.h">
@@ -621,34 +654,22 @@
     <ClInclude Include="Source\Engine\Game\AtlasSpriteActor.h">
       <Filter>Source\Engine\Game</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Game\ConeActor.h">
-      <Filter>Source\Engine\Game</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Game\CubeActor.h">
-      <Filter>Source\Engine\Game</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Game\CylinderActor.h">
-      <Filter>Source\Engine\Game</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Engine\Game\EffectActor.h">
       <Filter>Source\Engine\Game</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Game\FlipbookActor.h">
       <Filter>Source\Engine\Game</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Game\RingActor.h">
-      <Filter>Source\Engine\Game</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Engine\Game\SphereActor.h">
+    <ClInclude Include="Source\Engine\Game\QuadActor.h">
       <Filter>Source\Engine\Game</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Game\SpriteActor.h">
       <Filter>Source\Engine\Game</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Game\TextActor.h">
+    <ClInclude Include="Source\Engine\Game\StaticMeshActor.h">
       <Filter>Source\Engine\Game</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Game\TriangleActor.h">
+    <ClInclude Include="Source\Engine\Game\TextActor.h">
       <Filter>Source\Engine\Game</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Game\UnknownActor.h">
@@ -690,6 +711,9 @@
     <ClInclude Include="Source\Renderer\D3D11\D3D11SpriteBatchRenderer.h">
       <Filter>Source\Renderer\D3D11</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Renderer\D3D11\D3D11StaticMeshRenderer.h">
+      <Filter>Source\Renderer\D3D11</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Renderer\D3D11\D3D11TextBatchRenderer.h">
       <Filter>Source\Renderer\D3D11</Filter>
     </ClInclude>
@@ -697,6 +721,12 @@
       <Filter>Source\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\RenderAsset\FontResource.h">
+      <Filter>Source\Renderer\RenderAsset</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Renderer\RenderAsset\MaterialResource.h">
+      <Filter>Source\Renderer\RenderAsset</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Renderer\RenderAsset\StaticMeshResource.h">
       <Filter>Source\Renderer\RenderAsset</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\RenderAsset\SubUVAtlasResource.h">
@@ -723,6 +753,9 @@
     <ClInclude Include="Source\Renderer\Submitter\SpriteSubmitter.h">
       <Filter>Source\Renderer\Submitter</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Renderer\Submitter\StaticMeshSubmitter.h">
+      <Filter>Source\Renderer\Submitter</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Renderer\Submitter\TextSubmitter.h">
       <Filter>Source\Renderer\Submitter</Filter>
     </ClInclude>
@@ -742,6 +775,9 @@
       <Filter>Source\Renderer\Types</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\Types\MeshInstanceData.h">
+      <Filter>Source\Renderer\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Renderer\Types\MeshPassParams.h">
       <Filter>Source\Renderer\Types</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\Types\ObjectIdRenderItem.h">
@@ -800,6 +836,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="EngineClassDiagram.cd" />
   </ItemGroup>
 </Project>

@@ -12,9 +12,11 @@
 
 #include "Core/Misc/NameSubsystem.h"
 #include "Asset/AssetManager.h"
-#include "Asset/FontAtlasLoader.h"
-#include "Asset/SubUVAtlasLoader.h"
-#include "Asset/TextureLoader.h"
+#include "Asset/AssetLoader/FontAtlasLoader.h"
+#include "Asset/AssetLoader/SubUVAtlasLoader.h"
+#include "Asset/AssetLoader/TextureLoader.h"
+#include "Asset/AssetLoader/StaticMeshLoader.h"
+#include "Asset/AssetLoader/MaterialLoader.h" 
 
 #include "Renderer/WidgetRenderData.h"
 
@@ -162,9 +164,12 @@ bool FEditorEngineLoop::PreInit(HINSTANCE HInstance, uint32 NCmdShow)
     TextureAssetLoader = new FTextureLoader(&Renderer->GetRHI());
     FontAssetLoader = new FFontAtlasLoader(&Renderer->GetRHI());
     SubUVAtlasAssetLoader = new FSubUVAtlasLoader(&Renderer->GetRHI());
-    AssetManager->RegisterLoader(TextureAssetLoader);
+    StaticMeshLoader = new FStaticMeshLoader(&Renderer->GetRHI(), AssetManager);
+    MaterialLoader = new Engine::Asset::FMaterialLoader();
+    AssetManager->RegisterLoader(MaterialLoader);
     AssetManager->RegisterLoader(FontAssetLoader);
     AssetManager->RegisterLoader(SubUVAtlasAssetLoader);
+    AssetManager->RegisterLoader(StaticMeshLoader);
     Editor->SetRuntimeServices(&Renderer->GetRHI(), AssetManager);
 
     ImGui::CreateContext();
@@ -249,6 +254,12 @@ void FEditorEngineLoop::ShutDown()
     {
         Editor->SetRuntimeServices(nullptr, nullptr);
     }
+
+     delete StaticMeshLoader;
+    StaticMeshLoader = nullptr;
+
+     delete MaterialLoader;
+    MaterialLoader = nullptr;
 
     delete FontAssetLoader;
     FontAssetLoader = nullptr;

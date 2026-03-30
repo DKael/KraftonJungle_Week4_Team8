@@ -5,18 +5,22 @@
 
 namespace Engine::Component
 {
+    /**
+     * @brief 2D 평면(Quad)을 렌더링하기 위한 기본 컴포넌트입니다.
+     * 스프라이트 및 텍스트 컴포넌트의 기반이 됩니다.
+     */
     class ENGINE_API UQuadComponent : public UPrimitiveComponent
     {
         DECLARE_RTTI(UQuadComponent, UPrimitiveComponent)
       public:
         UQuadComponent() = default;
-        ~UQuadComponent() override = default;
+        virtual ~UQuadComponent() override = default;
 
-        EBasicMeshType GetBasicMeshType() const override { return EBasicMeshType::Quad; }
+        virtual EBasicMeshType GetBasicMeshType() const override { return EBasicMeshType::Quad; }
 
-        bool GetLocalTriangles(TArray<Geometry::FTriangle>& OutTriangles) const override;
+        virtual bool GetLocalTriangles(TArray<Geometry::FTriangle>& OutTriangles) const override;
 
       protected:
-        Geometry::FAABB GetLocalAABB() const override;
+        virtual Geometry::FAABB GetLocalAABB() const override;
     };
 } // namespace Engine::Component

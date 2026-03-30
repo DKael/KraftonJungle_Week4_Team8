@@ -1,5 +1,4 @@
-#include "QuadComponent.h"
-
+#include "Engine/Component/Mesh/QuadComponent.h"
 #include "Resources/Mesh/Quad.h"
 
 namespace Engine::Component

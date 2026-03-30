@@ -25,9 +25,19 @@ namespace Engine::Component
         BillboardOffset = InBillboardOffset;
     }
 
+    bool USpriteComponent::GetLocalTriangles(TArray<Geometry::FTriangle>& OutTriangles) const
+    {
+        return UQuadComponent::GetLocalTriangles(OutTriangles);
+    }
+
+    Geometry::FAABB USpriteComponent::GetLocalAABB() const
+    {
+        return UQuadComponent::GetLocalAABB();
+    }
+
     void USpriteComponent::DescribeProperties(FComponentPropertyBuilder& Builder)
     {
-        UQuadComponent::DescribeProperties(Builder);
+        UPrimitiveComponent::DescribeProperties(Builder); // 부모 호출 복구
 
         FComponentPropertyOptions TexturePathOptions;
         TexturePathOptions.ExpectedAssetPathKind = EComponentAssetPathKind::TextureImage;
@@ -39,6 +49,10 @@ namespace Engine::Component
         Builder.AddBool(
             "billboard", L"Billboard", [this]() { return GetBillboard(); },
             [this](bool bInValue) { SetBillboard(bInValue); });
+            
+        Builder.AddVector3(
+            "billboard_offset", L"Billboard Offset", [this]() { return GetBillboardOffset(); },
+            [this](const FVector& InValue) { SetBillboardOffset(InValue); });
     }
 
     void USpriteComponent::ResolveAssetReferences(UAssetManager* InAssetManager)
@@ -54,8 +68,6 @@ namespace Engine::Component
             Engine::SceneIO::ResolveSceneAssetPathToAbsolute(TexturePath);
         if (AbsolutePath.empty())
         {
-            UE_LOG(Asset, ELogVerbosity::Warning,
-                   "Failed to resolve texture path for SpriteComponent: %s", TexturePath.c_str());
             return;
         }
 
@@ -64,14 +76,10 @@ namespace Engine::Component
 
         UAsset*          LoadedAsset = InAssetManager->Load(AbsolutePath.native(), LoadParams);
         UTexture2DAsset* TextureAsset = Cast<UTexture2DAsset>(LoadedAsset);
-        if (TextureAsset == nullptr)
+        if (TextureAsset != nullptr)
         {
-            UE_LOG(Asset, ELogVerbosity::Warning,
-                   "Failed to load texture asset for SpriteComponent: %s", TexturePath.c_str());
-            return;
+            SetTextureResource(TextureAsset->GetResource());
         }
-
-        SetTextureResource(TextureAsset->GetResource());
     }
 
     REGISTER_CLASS(Engine::Component, USpriteComponent)
