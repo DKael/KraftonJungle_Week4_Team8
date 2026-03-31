@@ -250,7 +250,7 @@ void FObjViewerEngineLoop::OpenFileDialog()
                       L"All Files (*.*)\0*.*\0\0";
     OFN.lpstrFile      = FilePath;
     OFN.nMaxFile       = MAX_PATH;
-    OFN.Flags          = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+    OFN.Flags          = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
     OFN.lpstrTitle     = L"Open OBJ File";
 
     if (GetOpenFileNameW(&OFN))
