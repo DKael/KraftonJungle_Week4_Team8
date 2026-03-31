@@ -177,7 +177,7 @@ bool FObjViewerEngineLoop::RunFrameOnce()
 
     FEditorRenderData RenderData;
     RenderData.SceneView      = &SceneView;
-    RenderData.bShowGrid      = true;
+    RenderData.bShowGrid      = false;
     RenderData.bShowWorldAxes = true;
 
     Renderer->BeginFrame();
@@ -241,7 +241,7 @@ void FObjViewerEngineLoop::FitCameraToMesh()
 void FObjViewerEngineLoop::LoadMesh(const FWString& Path)
 {
     UAsset* Asset = AssetManager->Load(Path);
-    auto*   SM    = dynamic_cast<Engine::Asset::UStaticMesh*>(Asset);
+    Engine::Asset::UStaticMesh* SM = Cast<Engine::Asset::UStaticMesh>(Asset);
     if (!SM) return;
 
     LoadedMesh     = SM;
@@ -264,7 +264,8 @@ void FObjViewerEngineLoop::OpenFileDialog()
     OPENFILENAMEW OFN  = {};
     OFN.lStructSize    = sizeof(OFN);
     OFN.hwndOwner      = static_cast<HWND>(Application->GetNativeWindowHandle());
-    OFN.lpstrFilter    = L"OBJ Files\0*.obj\0All Files\0*.*\0";
+    OFN.lpstrFilter = L"OBJ Files (*.obj)\0*.obj\0"
+                      L"All Files (*.*)\0*.*\0\0";
     OFN.lpstrFile      = FilePath;
     OFN.nMaxFile       = MAX_PATH;
     OFN.Flags          = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
@@ -278,6 +279,9 @@ void FObjViewerEngineLoop::OpenFileDialog()
 
 void FObjViewerEngineLoop::DrawUI()
 {
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
     ImGui::SetNextWindowPos(ImVec2(10.f, 10.f), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(240.f, 0.f), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.80f);
@@ -304,6 +308,8 @@ void FObjViewerEngineLoop::DrawUI()
     ImGui::TextDisabled("Scroll   : zoom");
 
     ImGui::End();
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
 // ─── WndProc handler ──────────────────────────────────────────────────────────

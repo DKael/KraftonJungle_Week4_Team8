@@ -5,6 +5,7 @@
 #include "Core/CoreMinimal.h"
 #include "Renderer/RendererModule.h"
 #include "Renderer/SceneView.h"
+#include "Camera/ViewportCamera.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -54,6 +55,8 @@ private:
     FString                     LoadedMeshName;
 
     FSceneView SceneView;
+
+    
 
     // Orbit camera: spherical coordinates around OrbitTarget (Z-up)
     FVector OrbitTarget = FVector(0.f, 0.f, 0.f);
