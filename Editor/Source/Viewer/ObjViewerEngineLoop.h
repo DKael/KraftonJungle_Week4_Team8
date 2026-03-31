@@ -6,7 +6,7 @@
 #include "Renderer/RendererModule.h"
 #include "Renderer/SceneView.h"
 #include "Camera/ViewportCamera.h"
-#include "Viewport/Navigation/ViewportNavigationController.h"
+#include "Viewer/OrbitalCameraController.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -56,8 +56,8 @@ private:
     FString                     LoadedMeshName;
 
     FSceneView SceneView;
-    FViewportCamera*             Camera    = nullptr;
-    FViewportNavigationController NavController;
+    FViewportCamera*         Camera = nullptr;
+    FOrbitalCameraController NavController;
 
     // Mouse drag state
     bool  bRMBDown   = false;

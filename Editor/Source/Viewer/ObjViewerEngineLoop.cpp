@@ -72,12 +72,10 @@ bool FObjViewerEngineLoop::PreInit(HINSTANCE HInstance, uint32 NCmdShow)
     Camera->OnResize(CachedW, CachedH);
 
     NavController.SetCamera(Camera);
-    NavController.SetRotationSpeed(0.4f);
-    NavController.SetOrbiting(true);
     NavController.SetOrbitPivot(FVector::Zero());
     NavController.SetOrbitRadius(5.f);
     NavController.SetOrbitAngles(0.f, 0.f);
-    NavController.UpdateOrbitCamera();
+    NavController.UpdateCamera();
     UpdateOrbitCamera();
 
     PrevTime = FPlatformTime::Seconds();
@@ -229,7 +227,7 @@ void FObjViewerEngineLoop::FitCameraToMesh()
     NavController.SetOrbitPivot(Center);
     NavController.SetOrbitRadius(Diagonal * 1.5f + 0.1f);
     NavController.SetOrbitAngles(0.f, 0.f);
-    NavController.UpdateOrbitCamera();
+    NavController.UpdateCamera();
     UpdateOrbitCamera();
 }
 
@@ -443,7 +441,6 @@ bool FObjViewerEngineLoop::HandleMessageInternal(HWND HWnd, UINT Msg, WPARAM WPa
         {
             // Pan: move orbit pivot (and camera) along the camera's local right/up plane
             NavController.AddPanInput(-DX, DY);
-            NavController.UpdateOrbitCamera();
             UpdateOrbitCamera();
         }
         break;

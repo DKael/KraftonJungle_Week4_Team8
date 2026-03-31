@@ -53,13 +53,6 @@ class FViewportNavigationController : public Engine::Viewport::IViewportControll
     void    UpdateOrbitCamera();
     void    EndOrbit();
 
-    /* Direct orbit state init (for external camera rigs, e.g. OBJ viewer) */
-    void  SetOrbiting(bool bInOrbiting) { bOrbiting = bInOrbiting; }
-    void  SetOrbitPivot(const FVector& InPivot) { OrbitPivot = InPivot; }
-    void  SetOrbitRadius(float InRadius) { OrbitRadius = std::max(InRadius, MinOrbitRadius); }
-    void  SetOrbitAngles(float InPitch, float InYaw) { Pitch = InPitch; Yaw = InYaw; }
-    float GetOrbitRadius() const { return OrbitRadius; }
-
     /* Dolly */
     void Dolly(float Value);
 
