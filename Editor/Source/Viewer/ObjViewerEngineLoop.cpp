@@ -14,6 +14,7 @@
 #include "Asset/AssetManager.h"
 #include "Asset/AssetLoader/StaticMeshLoader.h"
 #include "Asset/AssetLoader/MaterialLoader.h"
+#include "Asset/AssetLoader/TextureLoader.h"
 #include "Asset/StaticMesh.h"
 
 #include "Renderer/Types/RenderItem.h"
@@ -45,9 +46,11 @@ bool FObjViewerEngineLoop::PreInit(HINSTANCE HInstance, uint32 NCmdShow)
     Renderer = new FRendererModule();
     if (!Renderer->StartupModule(Hwnd)) return false;
 
-    AssetManager = new UAssetManager();
-    MatLoader    = new FMaterialLoader(AssetManager);
-    MeshLoader   = new FStaticMeshLoader(&Renderer->GetRHI(), AssetManager);
+    AssetManager  = new UAssetManager();
+    TextureLoader = new FTextureLoader(&Renderer->GetRHI());
+    MatLoader     = new FMaterialLoader(AssetManager);
+    MeshLoader    = new FStaticMeshLoader(&Renderer->GetRHI(), AssetManager);
+    AssetManager->RegisterLoader(TextureLoader);
     AssetManager->RegisterLoader(MatLoader);
     AssetManager->RegisterLoader(MeshLoader);
 
@@ -101,9 +104,10 @@ void FObjViewerEngineLoop::ShutDown()
 
     ImGuiLayer.Shutdown();
 
-    delete MeshLoader;   MeshLoader   = nullptr;
-    delete MatLoader;    MatLoader    = nullptr;
-    delete AssetManager; AssetManager = nullptr;
+    delete MeshLoader;    MeshLoader    = nullptr;
+    delete MatLoader;     MatLoader     = nullptr;
+    delete TextureLoader; TextureLoader = nullptr;
+    delete AssetManager;  AssetManager  = nullptr;
 
     if (Camera)
     {

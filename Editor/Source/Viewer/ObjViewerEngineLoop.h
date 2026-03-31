@@ -48,9 +48,10 @@ private:
 private:
     Engine::ApplicationCore::IApplication*  Application = nullptr;
     FRendererModule*                        Renderer    = nullptr;
-    UAssetManager*                          AssetManager = nullptr;
-    IAssetLoader*                           MeshLoader  = nullptr;
-    IAssetLoader*                           MatLoader   = nullptr;
+    UAssetManager*                          AssetManager   = nullptr;
+    IAssetLoader*                           TextureLoader  = nullptr;
+    IAssetLoader*                           MeshLoader     = nullptr;
+    IAssetLoader*                           MatLoader      = nullptr;
 
     Engine::Asset::UStaticMesh* LoadedMesh = nullptr;
     FWString                    LoadedMeshPath;
