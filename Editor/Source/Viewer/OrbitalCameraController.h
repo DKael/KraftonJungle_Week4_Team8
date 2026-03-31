@@ -20,6 +20,8 @@ public:
     void  SetOrbitRadius(float InRadius)                { OrbitRadius = std::max(InRadius, MinOrbitRadius); }
     void  SetOrbitAngles(float InPitch, float InYaw)    { Pitch = InPitch; Yaw = InYaw; }
     float GetOrbitRadius() const                        { return OrbitRadius; }
+    float GetOrbitPitch() const                         { return Pitch; }
+    float GetOrbitYaw() const                           { return Yaw; }
 
     /** Accumulate yaw delta (pixels or normalized units) and reposition the camera. */
     void AddYawInput(float Value);
@@ -33,6 +35,9 @@ public:
     /** Move the camera closer/farther from the pivot. Positive Value = zoom in. */
     void Dolly(float Value);
 
+    /** Smoothly interpolate camera rotation to the target angles over time. Alpha is [0, 1]. */
+    void SlerpCamera(float TargetPitch, float TargetYaw, float Alpha);
+
     /** Recompute camera position and orientation from current orbit state. */
     void UpdateCamera();
 
@@ -43,6 +48,8 @@ private:
     float   Pitch         = 0.f;   // degrees, vertical orbit angle, clamped [-89, 89]
     float   OrbitRadius   = 5.f;
     FVector OrbitPivot    = FVector::Zero();
+
+    float Slerping = -1.f;
 
     float RotationSpeed  = 0.4f;
     float PanSpeed       = 0.1f;

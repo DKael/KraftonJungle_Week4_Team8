@@ -90,6 +90,15 @@ void FViewerImGui::DrawControlPanel(const FViewerUIInput& Input, FViewerUIOutput
 
     DrawViewModePanel(Input.CurrentViewMode, Out);
 
+    ImGui::Separator();
+
+    // Coordinate conversion toggle: left-handed Y-up OBJ to engine Z-up
+    bool bConvert = Input.bConvertCoords;
+    if (ImGui::Checkbox("Y-up to Z-up", &bConvert))
+        Out.bConvertCoords = bConvert;
+    else
+        Out.bConvertCoords = Input.bConvertCoords;
+
     ImGui::Spacing();
     ImGui::TextUnformatted("Camera Alignment");
 
@@ -107,31 +116,36 @@ void FViewerImGui::DrawViewModePanel(EViewModeIndex Current, FViewerUIOutput& Ou
     Out.SelectedViewMode = Current;
 }
 
-void FViewerImGui::DrawCameraPanel(FViewerUIOutput& Out) {
-    if (ImGui::Button("Forward"))
+void FViewerImGui::DrawCameraPanel(FViewerUIOutput& Out)
+{
+    // Layout (cube-net cross):
+    //       [ Top  ]
+    //  [Left][Front][Right]
+    //       [Bottom]
+    //       [ Back ]
+
+    const float Avail   = ImGui::GetContentRegionAvail().x;
+    const float Spacing = ImGui::GetStyle().ItemSpacing.x;
+    const float BtnW    = (Avail - Spacing * 2.f) / 3.f; // one third of row
+
+    // Helper: draw a single button centered in the full row width
+    auto CenteredBtn = [&](const char* Label, ECameraCommand Cmd)
     {
-        Out.CameraCommand = ECC_Forward;
-    }
-    if (ImGui::Button("Back"))
-    {
-        Out.CameraCommand = ECC_Back;
-    }
-    if (ImGui::Button("Up"))
-    {
-        Out.CameraCommand = ECC_Up;
-    }
-    if (ImGui::Button("Bottom"))
-    {
-        Out.CameraCommand = ECC_Bottom;
-    }
-    if (ImGui::Button("Left"))
-    {
-        Out.CameraCommand = ECC_Left;
-    }
-    if (ImGui::Button("Right"))
-    {
-        Out.CameraCommand = ECC_Right;
-    }
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (Avail - BtnW) * 0.5f);
+        if (ImGui::Button(Label, ImVec2(BtnW, 0.f)))
+            Out.CameraCommand = Cmd;
+    };
+
+    CenteredBtn("Top",    ECC_Up);
+
+    if (ImGui::Button("Left",  ImVec2(BtnW, 0.f))) Out.CameraCommand = ECC_Left;
+    ImGui::SameLine();
+    if (ImGui::Button("Front", ImVec2(BtnW, 0.f))) Out.CameraCommand = ECC_Forward;
+    ImGui::SameLine();
+    if (ImGui::Button("Right", ImVec2(BtnW, 0.f))) Out.CameraCommand = ECC_Right;
+
+    CenteredBtn("Bottom", ECC_Bottom);
+    CenteredBtn("Back",   ECC_Back);
 }
 
 #endif // IS_OBJ_VIEWER

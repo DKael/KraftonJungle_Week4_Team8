@@ -30,16 +30,18 @@ namespace ViewerUI
 
     struct FViewerUIInput
     {
-        const char*    MeshName        = nullptr;
-        float          FPS             = 0.f;
-        EViewModeIndex CurrentViewMode = EViewModeIndex::VMI_Lit;
+        const char*    MeshName          = nullptr;
+        float          FPS               = 0.f;
+        EViewModeIndex CurrentViewMode   = EViewModeIndex::VMI_Lit;
+        bool           bConvertCoords    = false;  // LH Y-up → Z-up
     };
 
     struct FViewerUIOutput
     {
-        ECameraCommand CameraCommand    = ECC_None;
-        bool           bOpenRequested   = false;
-        EViewModeIndex SelectedViewMode = EViewModeIndex::VMI_Lit;
+        ECameraCommand CameraCommand     = ECC_None;
+        bool           bOpenRequested    = false;
+        EViewModeIndex SelectedViewMode  = EViewModeIndex::VMI_Lit;
+        bool           bConvertCoords    = false;
     };
 
     class FViewerImGui

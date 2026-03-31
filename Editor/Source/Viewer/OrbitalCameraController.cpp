@@ -44,6 +44,20 @@ void FOrbitalCameraController::Dolly(float Value)
     UpdateCamera();
 }
 
+void FOrbitalCameraController::SlerpCamera(float InTargetPitch, float InTargetYaw, float Alpha)
+{
+    if (Alpha < 0.f) return;
+
+    // FRotator stores degrees; no radian conversion needed here.
+    const FQuat From(FRotator(Pitch, Yaw, 0.f));
+    const FQuat Dest(FRotator(InTargetPitch, InTargetYaw, 0.f));
+
+    const FQuat   Where = FQuat::Slerp(From, Dest, FMath::Clamp(Alpha, 0.f, 1.f));
+    const FVector Val   = Where.Euler(); // FRotator::Euler() returns FVector(Roll, Pitch, Yaw)
+    SetOrbitAngles(Val.Y, Val.Z);        // Val.Y = Pitch, Val.Z = Yaw
+    UpdateCamera();
+}
+
 void FOrbitalCameraController::UpdateCamera()
 {
     if (Camera == nullptr)

@@ -158,12 +158,40 @@ bool FObjViewerEngineLoop::RunFrameOnce()
     DeltaTime = static_cast<float>(Raw);
     FPS       = static_cast<float>(1.0 / Raw);
 
+    if (Slerping > 1.f)
+    {
+        NavController.SetOrbitAngles(TargetPitch, TargetYaw);
+        NavController.UpdateCamera();
+        UpdateOrbitCamera();
+        Slerping = -1.f;
+    }
+    else if (Slerping >= 0.f)
+    {
+        NavController.SlerpCamera(TargetPitch, TargetYaw, Slerping);
+        UpdateOrbitCamera();
+        Slerping += DeltaTime / 2;
+    }
+
     // Build scene frame data
     FSceneFrameRenderData FrameData;
     if (LoadedMesh && LoadedMesh->GetRenderResource())
     {
         FStaticMeshRenderItem Item;
-        Item.World          = FMatrix::Identity;
+
+        // LH Y-up → Z-up: maps (X=right, Y=up, Z=fwd) to (X=fwd, Y=right, Z=up).
+        // Row-vector form: v_eng = v_obj * M, where rows are (0,1,0), (0,0,1), (1,0,0).
+        // Pure permutation (det=+1) so normals transform correctly under the same matrix.
+        if (bConvertCoords)
+        {
+            FMatrix CoordConv = FMatrix::Identity;
+            CoordConv.SetAxes(FVector(0, 1, 0), FVector(0, 0, 1), FVector(1, 0, 0));
+            Item.World = CoordConv;
+        }
+        else
+        {
+            Item.World = FMatrix::Identity;
+        }
+
         Item.RenderResource = LoadedMesh->GetRenderResource();
         Item.WorldAABB      = LoadedMesh->GetRenderResource()->BoundingBox;
         Item.State.ObjectId = 1;
@@ -269,20 +297,26 @@ void FObjViewerEngineLoop::DrawUI()
     In.MeshName        = LoadedMesh ? LoadedMeshName.c_str() : nullptr;
     In.FPS             = FPS;
     In.CurrentViewMode = ViewMode;
+    In.bConvertCoords  = bConvertCoords;
 
     const ViewerUI::FViewerUIOutput Out = ImGuiLayer.Draw(In);
     if (Out.bOpenRequested)
         OpenFileDialog();
-    ViewMode = Out.SelectedViewMode;
+    ViewMode       = Out.SelectedViewMode;
+    bConvertCoords = Out.bConvertCoords;
 
     if (Out.CameraCommand != ViewerUI::ECC_None)
     {
-        // Re-fit pivot and radius to the mesh, then snap to the requested axis view.
-        // ToPivot = (cos(Pitch)*cos(Yaw), cos(Pitch)*sin(Yaw), sin(Pitch))
-        // Camera = Pivot - ToPivot * Radius  (engine: X=Forward, Y=Right, Z=Up)
-        FitCameraToMesh();
+        // Fit pivot and radius to the mesh WITHOUT resetting angles.
+        // The slerp animates from the current angles to the target — snapping
+        // angles here (as FitCameraToMesh does) would defeat the purpose.
+        if (LoadedMesh && LoadedMesh->GetRenderResource())
+        {
+            const auto& BB = LoadedMesh->GetRenderResource()->BoundingBox;
+            NavController.SetOrbitPivot((BB.Max + BB.Min) * 0.5f);
+            NavController.SetOrbitRadius((BB.Max - BB.Min).Size() * 1.5f + 0.1f);
+        }
 
-        float TargetPitch = 0.f, TargetYaw = 0.f;
         switch (Out.CameraCommand)
         {
         case ViewerUI::ECC_Forward: TargetPitch =   0.f; TargetYaw =    0.f; break;
@@ -293,11 +327,13 @@ void FObjViewerEngineLoop::DrawUI()
         case ViewerUI::ECC_Bottom:  TargetPitch =  89.f; TargetYaw =    0.f; break;
         default:                                                               break;
         }
-        NavController.SetOrbitAngles(TargetPitch, TargetYaw);
-        NavController.UpdateCamera();
-        UpdateOrbitCamera();
+        Slerping = 0.f; // RunFrameOnce drives the animation from here
     }
 }
+
+// ─── Helper ──────────────────────────────────────────────────────────────
+
+
 
 // ─── WndProc handler ──────────────────────────────────────────────────────────
 
@@ -423,7 +459,7 @@ bool FObjViewerEngineLoop::HandleMessageInternal(HWND HWnd, UINT Msg, WPARAM WPa
 
         if (bRMBDown)
         {
-            // RotationSpeed is set to 0.4, so AddYawInput(DX) == Yaw += DX * 0.4
+            Slerping = -1.f; // cancel any in-progress camera alignment slerp
             NavController.AddYawInput(DX);
             NavController.AddPitchInput(-DY);
             UpdateOrbitCamera();

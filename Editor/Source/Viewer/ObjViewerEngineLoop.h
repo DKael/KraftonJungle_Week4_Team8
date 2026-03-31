@@ -62,6 +62,10 @@ private:
     FOrbitalCameraController NavController;
     ViewerUI::FViewerImGui   ImGuiLayer;
 
+    float Slerping      = -1.f;
+    float TargetPitch   = 0.f;
+    float TargetYaw     = 0.f;
+
     // Mouse drag state
     bool  bRMBDown   = false;
     bool  bMMBDown   = false;
@@ -74,11 +78,14 @@ private:
     float  DeltaTime = 0.0f;
     float  FPS       = 0.0f;
 
-    EViewModeIndex ViewMode = EViewModeIndex::VMI_Lit;
+    EViewModeIndex ViewMode        = EViewModeIndex::VMI_Lit;
+    bool           bConvertCoords = false;
 
     bool bIsExit                    = false;
     bool bIsInSizeMoveLoop          = false;
     bool bIsRenderingDuringSizeMove = false;
+
+private:
 };
 
 #endif // IS_OBJ_VIEWER
