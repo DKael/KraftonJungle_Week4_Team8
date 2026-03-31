@@ -7,6 +7,7 @@
 #include "Renderer/SceneView.h"
 #include "Camera/ViewportCamera.h"
 #include "Viewer/OrbitalCameraController.h"
+#include "ViewerImGui.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -58,6 +59,7 @@ private:
     FSceneView SceneView;
     FViewportCamera*         Camera = nullptr;
     FOrbitalCameraController NavController;
+    ViewerUI::FViewerImGui   ImGuiLayer;
 
     // Mouse drag state
     bool  bRMBDown   = false;
@@ -70,6 +72,8 @@ private:
     double PrevTime  = 0.0;
     float  DeltaTime = 0.0f;
     float  FPS       = 0.0f;
+
+    EViewModeIndex ViewMode = EViewModeIndex::VMI_Lit;
 
     bool bIsExit                    = false;
     bool bIsInSizeMoveLoop          = false;

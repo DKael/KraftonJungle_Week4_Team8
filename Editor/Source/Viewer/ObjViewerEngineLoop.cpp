@@ -10,10 +10,6 @@
 #pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "shell32.lib")
 
-#include "imgui.h"
-#include <imgui_impl_dx11.h>
-#include <imgui_impl_win32.h>
-
 #include "Core/Misc/NameSubsystem.h"
 #include "Asset/AssetManager.h"
 #include "Asset/AssetLoader/StaticMeshLoader.h"
@@ -22,11 +18,8 @@
 
 #include "Renderer/Types/RenderItem.h"
 #include "Renderer/SceneFrameRenderData.h"
-#include "Renderer/Types/ViewMode.h"
 
 #include "ApplicationCore/Windows/WindowsApplication.h"
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 // ─── PreInit ─────────────────────────────────────────────────────────────────
 
@@ -58,10 +51,7 @@ bool FObjViewerEngineLoop::PreInit(HINSTANCE HInstance, uint32 NCmdShow)
     AssetManager->RegisterLoader(MatLoader);
     AssetManager->RegisterLoader(MeshLoader);
 
-    ImGui::CreateContext();
-    ImGui::StyleColorsDark();
-    ImGui_ImplWin32_Init(Hwnd);
-    ImGui_ImplDX11_Init(Renderer->GetRHI().GetDevice(), Renderer->GetRHI().GetDeviceContext());
+    ImGuiLayer.Init(Hwnd, Renderer->GetRHI().GetDevice(), Renderer->GetRHI().GetDeviceContext());
 
     WinApp->SetMessageHandler(&FObjViewerEngineLoop::HandleMessage, this);
 
@@ -109,9 +99,7 @@ void FObjViewerEngineLoop::ShutDown()
     if (auto* WinApp = GetWindowsApp())
         WinApp->SetMessageHandler(nullptr, nullptr);
 
-    ImGui_ImplDX11_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
+    ImGuiLayer.Shutdown();
 
     delete MeshLoader;   MeshLoader   = nullptr;
     delete MatLoader;    MatLoader    = nullptr;
@@ -196,7 +184,7 @@ bool FObjViewerEngineLoop::RunFrameOnce()
 
     Renderer->BeginFrame();
     Renderer->SetSceneFrameData(std::move(FrameData));
-    Renderer->Render(RenderData, EViewModeIndex::VMI_Lit);
+    Renderer->Render(RenderData, ViewMode);
     DrawUI();
     Renderer->EndFrame();
 
@@ -273,37 +261,15 @@ void FObjViewerEngineLoop::OpenFileDialog()
 
 void FObjViewerEngineLoop::DrawUI()
 {
-    ImGui_ImplDX11_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-    ImGui::SetNextWindowPos(ImVec2(10.f, 10.f), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(240.f, 0.f), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.80f);
-    ImGui::Begin("##ObjViewer", nullptr,
-                 ImGuiWindowFlags_NoTitleBar  | ImGuiWindowFlags_NoResize  |
-                 ImGuiWindowFlags_NoMove      | ImGuiWindowFlags_NoScrollbar |
-                 ImGuiWindowFlags_NoSavedSettings);
+    ViewerUI::FViewerUIInput In;
+    In.MeshName        = LoadedMesh ? LoadedMeshName.c_str() : nullptr;
+    In.FPS             = FPS;
+    In.CurrentViewMode = ViewMode;
 
-    if (ImGui::Button("Open OBJ...", ImVec2(-1.f, 0.f)))
+    const ViewerUI::FViewerUIOutput Out = ImGuiLayer.Draw(In);
+    if (Out.bOpenRequested)
         OpenFileDialog();
-
-    ImGui::Separator();
-
-    if (LoadedMesh)
-        ImGui::TextUnformatted(LoadedMeshName.c_str());
-    else
-        ImGui::TextDisabled("No mesh loaded");
-
-    ImGui::Separator();
-    ImGui::Text("FPS: %.1f", FPS);
-    ImGui::Spacing();
-    ImGui::TextDisabled("RMB drag : orbit");
-    ImGui::TextDisabled("MMB drag : pan");
-    ImGui::TextDisabled("Scroll   : zoom");
-
-    ImGui::End();
-    ImGui::Render();
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    ViewMode = Out.SelectedViewMode;
 }
 
 // ─── WndProc handler ──────────────────────────────────────────────────────────
@@ -319,10 +285,8 @@ bool FObjViewerEngineLoop::HandleMessageInternal(HWND HWnd, UINT Msg, WPARAM WPa
                                                   LPARAM LParam, LRESULT& OutResult)
 {
     // Let ImGui see the message first so WantCaptureMouse is up-to-date
-    const LRESULT ImGuiResult = ImGui_ImplWin32_WndProcHandler(HWnd, Msg, WParam, LParam);
-
-    const bool bImGuiWantsMouse =
-        ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse;
+    const LRESULT ImGuiResult   = ImGuiLayer.ForwardMessage(HWnd, Msg, WParam, LParam);
+    const bool bImGuiWantsMouse = ImGuiLayer.WantCaptureMouse();
 
     switch (Msg)
     {

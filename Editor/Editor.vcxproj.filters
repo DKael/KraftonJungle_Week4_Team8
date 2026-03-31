@@ -198,6 +198,9 @@
     <ClCompile Include="Source\Viewport\Window\WindowOverlayManager.cpp">
       <Filter>Source\Viewport\Window</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Viewer\ViewerImGui.cpp">
+      <Filter>Source\Viewer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Camera\ViewportCamera.h">
@@ -346,6 +349,9 @@
     </ClInclude>
     <ClInclude Include="Source\Viewport\Window\WindowOverlayManager.h">
       <Filter>Source\Viewport\Window</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Viewer\ViewerImGui.h">
+      <Filter>Source\Viewer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
