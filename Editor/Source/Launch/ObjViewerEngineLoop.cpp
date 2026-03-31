@@ -68,6 +68,10 @@ bool FObjViewerEngineLoop::PreInit(HINSTANCE HInstance, uint32 NCmdShow)
 
     CachedW = Application->GetWindowWidth();
     CachedH = Application->GetWindowHeight();
+    Camera = new FViewportCamera();
+    Camera->SetFOV(3.141592f * 0.5f); // 90°
+    Camera->OnResize(CachedW, CachedH);
+
     UpdateOrbitCamera();
 
     PrevTime = FPlatformTime::Seconds();
@@ -108,6 +112,12 @@ void FObjViewerEngineLoop::ShutDown()
     delete MeshLoader;   MeshLoader   = nullptr;
     delete MatLoader;    MatLoader    = nullptr;
     delete AssetManager; AssetManager = nullptr;
+
+    if (Camera)
+    {
+        delete Camera;
+        Camera = nullptr;
+    }
 
     if (Renderer)
     {
@@ -194,29 +204,40 @@ bool FObjViewerEngineLoop::RunFrameOnce()
 
 void FObjViewerEngineLoop::UpdateOrbitCamera()
 {
-    const float PitchRad = OrbitPitch * 3.14159265f / 180.0f;
-    const float YawRad   = OrbitYaw   * 3.14159265f / 180.0f;
+    const float PitchRad = FMath::DegreesToRadians(Pitch);
+    const float YawRad   = FMath::DegreesToRadians(Yaw);
 
-    const float SinP = sinf(PitchRad);
-    const float CosP = cosf(PitchRad);
-    const float SinY = sinf(YawRad);
-    const float CosY = cosf(YawRad);
+    const FVector ToPivot(
+        std::cos(PitchRad) * std::cos(YawRad),
+        std::cos(PitchRad) * std::sin(YawRad),
+        std::sin(PitchRad)
+    );
 
-    // Camera offset direction from target (Z-up spherical coordinates)
-    const FVector Dir(SinP * CosY, SinP * SinY, CosP);
-    const FVector CamPos = OrbitTarget + Dir * OrbitRadius;
+    Camera->SetLocation(Pivot - ToPivot * Dist);
 
-    // Swap up vector near poles to avoid gimbal lock
-    const FVector Up = (fabsf(CosP) > 0.99f) ? FVector(1.f, 0.f, 0.f) : FVector(0.f, 0.f, 1.f);
+    const FVector WorldUp = FVector::UpVector;
+    const FVector Forward = ToPivot.GetSafeNormal();
 
-    const float   Aspect  = (CachedH > 0) ? static_cast<float>(CachedW) / static_cast<float>(CachedH)
-                                           : 16.f / 9.f;
-    const FMatrix ViewMat = FMatrix::MakeViewLookAtLH(CamPos, OrbitTarget, Up);
-    const FMatrix ProjMat = FMatrix::MakePerspectiveFovLH(3.14159265f * 0.5f, Aspect, 0.1f, 2000.f);
+    // Force Up to stay aligned with world up
+    FVector Up = (WorldUp - Forward * FVector::DotProduct(WorldUp, Forward)).GetSafeNormal();
 
-    SceneView.SetViewMatrix(ViewMat);
-    SceneView.SetProjectionMatrix(ProjMat);
-    SceneView.SetViewLocation(CamPos);
+    // Handle pole case
+    if (Up.IsNearlyZero())
+        Up = FVector(0.f, 1.f, 0.f);
+
+    FVector Right = FVector::CrossProduct(Up, Forward).GetSafeNormal();
+
+    FMatrix RotMat = FMatrix::Identity;
+    RotMat.SetAxes(ToPivot, Right, Up);
+    //RotMat.SetAxes(ToPivot, Camera->GetRightVector(), Camera->GetUpVector());
+
+    FQuat Rotation(RotMat);
+    Rotation.Normalize();
+    Camera->SetRotation(Rotation);
+
+    SceneView.SetViewMatrix(Camera->GetViewMatrix());
+    SceneView.SetProjectionMatrix(Camera->GetProjectionMatrix());
+    SceneView.SetViewLocation(Camera->GetLocation());
     SceneView.SetViewRect({ 0, 0, CachedW, CachedH });
     SceneView.SetClipPlanes(0.1f, 2000.f);
 }
@@ -225,14 +246,13 @@ void FObjViewerEngineLoop::FitCameraToMesh()
 {
     if (!LoadedMesh || !LoadedMesh->GetRenderResource()) return;
 
-    const auto& BB     = LoadedMesh->GetRenderResource()->BoundingBox;
-    const FVector Center = (BB.Min + BB.Max) * 0.5f;
+    const auto& BB = LoadedMesh->GetRenderResource()->BoundingBox;
+    Pivot          = (BB.Max + BB.Min) * 0.5f;
     const float Diagonal = (BB.Max - BB.Min).Size();
 
-    OrbitTarget = Center;
-    OrbitRadius = Diagonal * 1.5f + 0.1f;
-    OrbitYaw    = 45.f;
-    OrbitPitch  = 30.f;
+    Dist  = Diagonal * 1.5f + 0.1f;
+    Yaw   = 0.f;
+    Pitch = 0.f;
     UpdateOrbitCamera();
 }
 
@@ -247,7 +267,6 @@ void FObjViewerEngineLoop::LoadMesh(const FWString& Path)
     LoadedMesh     = SM;
     LoadedMeshPath = Path;
 
-    // Derive a UTF-8 display name from the last path segment
     const auto LastSep = Path.find_last_of(L"\\/");
     const FWString NameW = (LastSep != FWString::npos) ? Path.substr(LastSep + 1) : Path;
     LoadedMeshName.clear();
@@ -438,21 +457,9 @@ bool FObjViewerEngineLoop::HandleMessageInternal(HWND HWnd, UINT Msg, WPARAM WPa
 
         if (bRMBDown)
         {
-            OrbitYaw   += DX * 0.4f;
-            OrbitPitch += DY * 0.4f;
-            if (OrbitPitch <   5.f) OrbitPitch =   5.f;
-            if (OrbitPitch > 175.f) OrbitPitch = 175.f;
-            UpdateOrbitCamera();
-        }
-        else if (bMMBDown)
-        {
-            // Pan in camera-right and world-up directions
-            const float YawRad  = OrbitYaw * 3.14159265f / 180.f;
-            const float Speed   = OrbitRadius * 0.002f;
-            const FVector Right(cosf(YawRad + 3.14159265f * 0.5f),
-                                sinf(YawRad + 3.14159265f * 0.5f), 0.f);
-            OrbitTarget = OrbitTarget + Right * (-DX * Speed);
-            OrbitTarget = OrbitTarget + FVector(0.f, 0.f, 1.f) * (DY * Speed);
+            Yaw   += DX * 0.4f;
+            Pitch -= DY * 0.4f;
+            Pitch  = FMath::Clamp(Pitch, -89.f, 89.f);
             UpdateOrbitCamera();
         }
         break;
@@ -462,9 +469,8 @@ bool FObjViewerEngineLoop::HandleMessageInternal(HWND HWnd, UINT Msg, WPARAM WPa
         if (!bImGuiWantsMouse)
         {
             const float Delta = static_cast<float>(GET_WHEEL_DELTA_WPARAM(WParam)) / WHEEL_DELTA;
-            OrbitRadius -= Delta * OrbitRadius * 0.1f;
-            if (OrbitRadius <    0.1f) OrbitRadius =    0.1f;
-            if (OrbitRadius > 5000.f)  OrbitRadius = 5000.f;
+            Dist -= Delta * Dist * 0.1f;
+            if (Dist < 0.1f) Dist = 0.1f;
             UpdateOrbitCamera();
         }
         break;

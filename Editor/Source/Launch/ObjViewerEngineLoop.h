@@ -44,7 +44,7 @@ private:
     Engine::ApplicationCore::FWindowsApplication* GetWindowsApp() const;
 
 private:
-    Engine::ApplicationCore::IApplication* Application = nullptr;
+    Engine::ApplicationCore::IApplication*  Application = nullptr;
     FRendererModule*                        Renderer    = nullptr;
     UAssetManager*                          AssetManager = nullptr;
     IAssetLoader*                           MeshLoader  = nullptr;
@@ -55,18 +55,16 @@ private:
     FString                     LoadedMeshName;
 
     FSceneView SceneView;
+    FViewportCamera* Camera = nullptr;
 
-    
-
-    // Orbit camera: spherical coordinates around OrbitTarget (Z-up)
-    FVector OrbitTarget = FVector(0.f, 0.f, 0.f);
-    float   OrbitRadius = 5.f;
-    float   OrbitYaw    = 45.f;   // degrees, rotation around Z
-    float   OrbitPitch  = 30.f;   // degrees, 0 = top, 90 = equator, 180 = bottom
+    FVector Pivot = FVector(0.f, 0.f, 0.f);
+    float   Yaw   = 0.f;   // degrees, horizontal orbit angle
+    float   Pitch = 0.f;   // degrees, vertical orbit angle, clamped [-89, 89]
+    float   Dist  = 5.f;
 
     // Mouse drag state
-    bool  bRMBDown   = false;   // right mouse = orbit
-    bool  bMMBDown   = false;   // middle mouse = pan
+    bool  bRMBDown   = false;
+    bool  bMMBDown   = false;
     float LastMouseX = 0.f;
     float LastMouseY = 0.f;
 
