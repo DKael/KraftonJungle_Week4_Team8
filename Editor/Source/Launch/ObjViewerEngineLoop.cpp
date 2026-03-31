@@ -7,7 +7,6 @@
 #include <windowsx.h>
 #include <commdlg.h>
 #include <shellapi.h>
-#include <cmath>
 #pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "shell32.lib")
 
@@ -72,6 +71,13 @@ bool FObjViewerEngineLoop::PreInit(HINSTANCE HInstance, uint32 NCmdShow)
     Camera->SetFOV(3.141592f * 0.5f); // 90°
     Camera->OnResize(CachedW, CachedH);
 
+    NavController.SetCamera(Camera);
+    NavController.SetRotationSpeed(0.4f);
+    NavController.SetOrbiting(true);
+    NavController.SetOrbitPivot(FVector::Zero());
+    NavController.SetOrbitRadius(5.f);
+    NavController.SetOrbitAngles(0.f, 0.f);
+    NavController.UpdateOrbitCamera();
     UpdateOrbitCamera();
 
     PrevTime = FPlatformTime::Seconds();
@@ -204,37 +210,7 @@ bool FObjViewerEngineLoop::RunFrameOnce()
 
 void FObjViewerEngineLoop::UpdateOrbitCamera()
 {
-    const float PitchRad = FMath::DegreesToRadians(Pitch);
-    const float YawRad   = FMath::DegreesToRadians(Yaw);
-
-    const FVector ToPivot(
-        std::cos(PitchRad) * std::cos(YawRad),
-        std::cos(PitchRad) * std::sin(YawRad),
-        std::sin(PitchRad)
-    );
-
-    Camera->SetLocation(Pivot - ToPivot * Dist);
-
-    const FVector WorldUp = FVector::UpVector;
-    const FVector Forward = ToPivot.GetSafeNormal();
-
-    // Force Up to stay aligned with world up
-    FVector Up = (WorldUp - Forward * FVector::DotProduct(WorldUp, Forward)).GetSafeNormal();
-
-    // Handle pole case
-    if (Up.IsNearlyZero())
-        Up = FVector(0.f, 1.f, 0.f);
-
-    FVector Right = FVector::CrossProduct(Up, Forward).GetSafeNormal();
-
-    FMatrix RotMat = FMatrix::Identity;
-    RotMat.SetAxes(ToPivot, Right, Up);
-    //RotMat.SetAxes(ToPivot, Camera->GetRightVector(), Camera->GetUpVector());
-
-    FQuat Rotation(RotMat);
-    Rotation.Normalize();
-    Camera->SetRotation(Rotation);
-
+    // NavController has already repositioned the camera; just sync the SceneView.
     SceneView.SetViewMatrix(Camera->GetViewMatrix());
     SceneView.SetProjectionMatrix(Camera->GetProjectionMatrix());
     SceneView.SetViewLocation(Camera->GetLocation());
@@ -246,13 +222,14 @@ void FObjViewerEngineLoop::FitCameraToMesh()
 {
     if (!LoadedMesh || !LoadedMesh->GetRenderResource()) return;
 
-    const auto& BB = LoadedMesh->GetRenderResource()->BoundingBox;
-    Pivot          = (BB.Max + BB.Min) * 0.5f;
+    const auto& BB       = LoadedMesh->GetRenderResource()->BoundingBox;
+    const FVector Center = (BB.Max + BB.Min) * 0.5f;
     const float Diagonal = (BB.Max - BB.Min).Size();
 
-    Dist  = Diagonal * 1.5f + 0.1f;
-    Yaw   = 0.f;
-    Pitch = 0.f;
+    NavController.SetOrbitPivot(Center);
+    NavController.SetOrbitRadius(Diagonal * 1.5f + 0.1f);
+    NavController.SetOrbitAngles(0.f, 0.f);
+    NavController.UpdateOrbitCamera();
     UpdateOrbitCamera();
 }
 
@@ -457,9 +434,16 @@ bool FObjViewerEngineLoop::HandleMessageInternal(HWND HWnd, UINT Msg, WPARAM WPa
 
         if (bRMBDown)
         {
-            Yaw   += DX * 0.4f;
-            Pitch -= DY * 0.4f;
-            Pitch  = FMath::Clamp(Pitch, -89.f, 89.f);
+            // RotationSpeed is set to 0.4, so AddYawInput(DX) == Yaw += DX * 0.4
+            NavController.AddYawInput(DX);
+            NavController.AddPitchInput(-DY);
+            UpdateOrbitCamera();
+        }
+        else if (bMMBDown)
+        {
+            // Pan: move orbit pivot (and camera) along the camera's local right/up plane
+            NavController.AddPanInput(-DX, DY);
+            NavController.UpdateOrbitCamera();
             UpdateOrbitCamera();
         }
         break;
@@ -469,8 +453,8 @@ bool FObjViewerEngineLoop::HandleMessageInternal(HWND HWnd, UINT Msg, WPARAM WPa
         if (!bImGuiWantsMouse)
         {
             const float Delta = static_cast<float>(GET_WHEEL_DELTA_WPARAM(WParam)) / WHEEL_DELTA;
-            Dist -= Delta * Dist * 0.1f;
-            if (Dist < 0.1f) Dist = 0.1f;
+            // Proportional zoom: 10% of current radius per wheel tick
+            NavController.Dolly(Delta * NavController.GetOrbitRadius() * 0.1f);
             UpdateOrbitCamera();
         }
         break;

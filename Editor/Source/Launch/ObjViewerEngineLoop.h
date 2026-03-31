@@ -6,6 +6,7 @@
 #include "Renderer/RendererModule.h"
 #include "Renderer/SceneView.h"
 #include "Camera/ViewportCamera.h"
+#include "Viewport/Navigation/ViewportNavigationController.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -55,12 +56,8 @@ private:
     FString                     LoadedMeshName;
 
     FSceneView SceneView;
-    FViewportCamera* Camera = nullptr;
-
-    FVector Pivot = FVector(0.f, 0.f, 0.f);
-    float   Yaw   = 0.f;   // degrees, horizontal orbit angle
-    float   Pitch = 0.f;   // degrees, vertical orbit angle, clamped [-89, 89]
-    float   Dist  = 5.f;
+    FViewportCamera*             Camera    = nullptr;
+    FViewportNavigationController NavController;
 
     // Mouse drag state
     bool  bRMBDown   = false;
