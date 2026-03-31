@@ -54,7 +54,7 @@ bool FObjViewerEngineLoop::PreInit(HINSTANCE HInstance, uint32 NCmdShow)
     if (!Renderer->StartupModule(Hwnd)) return false;
 
     AssetManager = new UAssetManager();
-    MatLoader    = new Engine::Asset::FMaterialLoader();
+    MatLoader    = new FMaterialLoader(AssetManager);
     MeshLoader   = new FStaticMeshLoader(&Renderer->GetRHI(), AssetManager);
     AssetManager->RegisterLoader(MatLoader);
     AssetManager->RegisterLoader(MeshLoader);
