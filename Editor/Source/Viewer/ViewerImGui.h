@@ -17,6 +17,17 @@ struct ID3D11DeviceContext;
 
 namespace ViewerUI
 {
+    enum ECameraCommand
+    {
+        ECC_None = 0,
+        ECC_Forward = 1,
+        ECC_Back = 2,
+        ECC_Up = 3,
+        ECC_Bottom = 4,
+        ECC_Left = 5,
+        ECC_Right = 6,
+    };
+
     struct FViewerUIInput
     {
         const char*    MeshName        = nullptr;
@@ -26,7 +37,7 @@ namespace ViewerUI
 
     struct FViewerUIOutput
     {
-        bool           bResetCamera     = false;
+        ECameraCommand CameraCommand    = ECC_None;
         bool           bOpenRequested   = false;
         EViewModeIndex SelectedViewMode = EViewModeIndex::VMI_Lit;
     };
@@ -53,8 +64,9 @@ namespace ViewerUI
         static constexpr const char* ViewModeLabels[] = {"Lit", "Unlit", "Wireframe"};
 
         bool           DrawLoadPanel(const char* MeshName, float FPS);
-        void           DrawControlPanel();
+        void           DrawControlPanel(const FViewerUIInput& Input, FViewerUIOutput& Out);
         void           DrawViewModePanel(EViewModeIndex Current, FViewerUIOutput& Out);
+        void           DrawCameraPanel(FViewerUIOutput& Out);
     };
 } // namespace ViewerUI
 

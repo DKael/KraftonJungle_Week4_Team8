@@ -41,7 +41,7 @@ FViewerUIOutput FViewerImGui::Draw(const FViewerUIInput& Input)
 
     FViewerUIOutput Out;
     Out.bOpenRequested  = DrawLoadPanel(Input.MeshName, Input.FPS);
-    DrawViewModePanel(Input.CurrentViewMode, Out);
+    DrawControlPanel(Input, Out);
 
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -78,12 +78,7 @@ bool FViewerImGui::DrawLoadPanel(const char* MeshName, float FPS)
     return bOpenClicked;
 }
 
-void FViewerImGui::DrawControlPanel()
-{
-
-}
-
-void FViewerImGui::DrawViewModePanel(EViewModeIndex Current, FViewerUIOutput& Out)
+void FViewerImGui::DrawControlPanel(const FViewerUIInput& Input, FViewerUIOutput& Out)
 {
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 170.f, 10.f), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(160.f, 0.f), ImGuiCond_Always);
@@ -93,13 +88,50 @@ void FViewerImGui::DrawViewModePanel(EViewModeIndex Current, FViewerUIOutput& Ou
                  ImGuiWindowFlags_NoMove        | ImGuiWindowFlags_NoScrollbar |
                  ImGuiWindowFlags_NoSavedSettings);
 
+    DrawViewModePanel(Input.CurrentViewMode, Out);
+
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Camera Alignment");
+
+    DrawCameraPanel(Out);
+
+    ImGui::End();
+}
+
+void FViewerImGui::DrawViewModePanel(EViewModeIndex Current, FViewerUIOutput& Out)
+{
     ImGui::TextUnformatted("View Mode");
     int Selected = static_cast<int>(Current);
     if (ImGui::Combo("##Shading", &Selected, ViewModeLabels, IM_ARRAYSIZE(ViewModeLabels)))
         Current = static_cast<EViewModeIndex>(Selected);
-
-    ImGui::End();
     Out.SelectedViewMode = Current;
+}
+
+void FViewerImGui::DrawCameraPanel(FViewerUIOutput& Out) {
+    if (ImGui::Button("Forward"))
+    {
+        Out.CameraCommand = ECC_Forward;
+    }
+    if (ImGui::Button("Back"))
+    {
+        Out.CameraCommand = ECC_Back;
+    }
+    if (ImGui::Button("Up"))
+    {
+        Out.CameraCommand = ECC_Up;
+    }
+    if (ImGui::Button("Bottom"))
+    {
+        Out.CameraCommand = ECC_Bottom;
+    }
+    if (ImGui::Button("Left"))
+    {
+        Out.CameraCommand = ECC_Left;
+    }
+    if (ImGui::Button("Right"))
+    {
+        Out.CameraCommand = ECC_Right;
+    }
 }
 
 #endif // IS_OBJ_VIEWER

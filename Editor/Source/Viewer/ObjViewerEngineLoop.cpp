@@ -270,6 +270,29 @@ void FObjViewerEngineLoop::DrawUI()
     if (Out.bOpenRequested)
         OpenFileDialog();
     ViewMode = Out.SelectedViewMode;
+
+    if (Out.CameraCommand != ViewerUI::ECC_None)
+    {
+        // Re-fit pivot and radius to the mesh, then snap to the requested axis view.
+        // ToPivot = (cos(Pitch)*cos(Yaw), cos(Pitch)*sin(Yaw), sin(Pitch))
+        // Camera = Pivot - ToPivot * Radius  (engine: X=Forward, Y=Right, Z=Up)
+        FitCameraToMesh();
+
+        float TargetPitch = 0.f, TargetYaw = 0.f;
+        switch (Out.CameraCommand)
+        {
+        case ViewerUI::ECC_Forward: TargetPitch =   0.f; TargetYaw =    0.f; break;
+        case ViewerUI::ECC_Back:    TargetPitch =   0.f; TargetYaw =  180.f; break;
+        case ViewerUI::ECC_Left:    TargetPitch =   0.f; TargetYaw =   90.f; break;
+        case ViewerUI::ECC_Right:   TargetPitch =   0.f; TargetYaw =  -90.f; break;
+        case ViewerUI::ECC_Up:      TargetPitch = -89.f; TargetYaw =    0.f; break;
+        case ViewerUI::ECC_Bottom:  TargetPitch =  89.f; TargetYaw =    0.f; break;
+        default:                                                               break;
+        }
+        NavController.SetOrbitAngles(TargetPitch, TargetYaw);
+        NavController.UpdateCamera();
+        UpdateOrbitCamera();
+    }
 }
 
 // ─── WndProc handler ──────────────────────────────────────────────────────────
