@@ -191,7 +191,8 @@ bool FObjViewerEngineLoop::RunFrameOnce()
         }
         else
         {
-            Item.World = FMatrix::Identity;
+            //Item.World = FMatrix::Identity;
+            Item.World = FMatrix::MakeScale(ModelScale) * Item.World;
         }
 
         Item.RenderResource = LoadedMesh->GetRenderResource();
@@ -236,7 +237,7 @@ void FObjViewerEngineLoop::UpdateOrbitCamera()
     SceneView.SetProjectionMatrix(Camera->GetProjectionMatrix());
     SceneView.SetViewLocation(Camera->GetLocation());
     SceneView.SetViewRect({ 0, 0, CachedW, CachedH });
-    SceneView.SetClipPlanes(0.1f, 2000.f);
+    SceneView.SetClipPlanes(0.1f, 3000.f);
 }
 
 void FObjViewerEngineLoop::FitCameraToMesh()
@@ -302,6 +303,7 @@ void FObjViewerEngineLoop::DrawUI()
     In.CurrentViewMode  = ViewMode;
     In.SelectedCullMode = CullMode;
     In.bConvertCoords   = bConvertCoords;
+    In.ModelScale       = ModelScale;
 
     const ViewerUI::FViewerUIOutput Out = ImGuiLayer.Draw(In);
     if (Out.bOpenRequested)
@@ -309,6 +311,11 @@ void FObjViewerEngineLoop::DrawUI()
     ViewMode       = Out.SelectedViewMode;
     CullMode       = Out.SelectedCullMode;
     bConvertCoords = Out.bConvertCoords;
+
+    if (Out.bIsScaleChanged)
+    {
+        ModelScale = Out.ModelScale;
+    }
 
     if (Out.CameraCommand != ViewerUI::ECC_None)
     {
@@ -330,7 +337,7 @@ void FObjViewerEngineLoop::DrawUI()
         case ViewerUI::ECC_Right:   TargetPitch =   0.f; TargetYaw =  -90.f; break;
         case ViewerUI::ECC_Up:      TargetPitch = -89.f; TargetYaw =    0.f; break;
         case ViewerUI::ECC_Bottom:  TargetPitch =  89.f; TargetYaw =    0.f; break;
-        default:                                                               break;
+        default:                                                             break;
         }
         Slerping = 0.f; // RunFrameOnce drives the animation from here
     }
