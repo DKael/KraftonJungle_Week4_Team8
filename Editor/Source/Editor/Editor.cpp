@@ -1405,12 +1405,12 @@ void FEditor::DrawAboutPopup()
             L"\uC7A5\uBBFC\uC900", // 장민준
         };
 
-        static const std::array<FWString, 4> SecondContributorSummaries = {
-            L"Editor UI & Tools, Material editing and UV scroll",
-            L"OBJ parser, Binary mesh serialization and Material editing",
-            L"Multi-viewport architecture, Camera systems and Viewer core",
-            L"Stat overlay (FPS/Memory), Console engine and Timer management",
-        };
+         static const std::array<FWString, 4> SecondContributorSummaries = {
+             L"Editor UI & Tools, Material editing and UV scroll",
+             L"OBJ parser, Binary mesh serialization and Material editing",
+             L"Multi-viewport architecture, Camera systems and Viewer core",
+             L"Stat overlay, Object iterator, Memory tracker, Postprocess Outline",
+         };
 
         for (size_t i = 0; i < SecondContributorNames.size(); ++i)
         {
