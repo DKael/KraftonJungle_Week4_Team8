@@ -1,77 +1,63 @@
 #include "Core/CoreMinimal.h"
 #include "MaterialLoader.h"
+#include "Asset/MaterialLibrary.h"
 #include "Asset/Material.h"
+#include "Asset/UAssetBinary.h"
+#include "Core/Serialization/WindowsBinArchive.h"
 #include "Asset/Texture2DAsset.h"
 
 #include <filesystem>
 #include <sstream>
 #include <cwctype>
 #include <algorithm>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
 namespace fs = std::filesystem;
 
 namespace
 {
-    FWString NarrowPathToWidePath(const FString& NarrowPath)
+    bool IsUAssetOfType(const FWString& Path, EUAssetBinaryType Expected)
     {
-        if (NarrowPath.empty())
+        const fs::path FilePath(Path);
+        std::error_code ErrorCode;
+        if (!fs::exists(FilePath, ErrorCode) || !fs::is_regular_file(FilePath, ErrorCode))
         {
-            return {};
+            return false;
         }
 
-        auto ConvertWithCodePage = [&](UINT CodePage, DWORD Flags) -> FWString
+        FWindowsBinReader Ar(FilePath);
+        if (!Ar.IsValid())
         {
-            const int32 RequiredChars =
-                MultiByteToWideChar(CodePage, Flags, NarrowPath.data(),
-                                    static_cast<int>(NarrowPath.size()), nullptr, 0);
-            if (RequiredChars <= 0)
-            {
-                return {};
-            }
-
-            FWString WidePath(static_cast<size_t>(RequiredChars), L'\0');
-            const int32 ConvertedChars =
-                MultiByteToWideChar(CodePage, Flags, NarrowPath.data(),
-                                    static_cast<int>(NarrowPath.size()), WidePath.data(),
-                                    RequiredChars);
-            if (ConvertedChars <= 0)
-            {
-                return {};
-            }
-
-            return WidePath;
-        };
-
-        FWString WidePath = ConvertWithCodePage(CP_UTF8, MB_ERR_INVALID_CHARS);
-        if (!WidePath.empty())
-        {
-            return WidePath;
+            return false;
         }
 
-        WidePath = ConvertWithCodePage(CP_ACP, 0);
-        if (!WidePath.empty())
+        FUAssetBinaryHeader Header;
+        Header.Magic = 0;
+        Header.Version = 0;
+        uint32 TypeValue = 0;
+        Header.AssetType = EUAssetBinaryType::Unknown;
+        Header.SourceHash = 0;
+
+        Ar << Header.Magic;
+        Ar << Header.Version;
+        Ar << TypeValue;
+        Header.AssetType = static_cast<EUAssetBinaryType>(TypeValue);
+        Ar << Header.SourceHash;
+
+        if (Header.Magic != kUAssetMagic || Header.Version != kUAssetVersion)
         {
-            return WidePath;
+            return false;
         }
 
-        return ConvertWithCodePage(CP_OEMCP, 0);
+        return Header.AssetType == Expected;
     }
 
-    bool IsAbsoluteWidePath(const FWString& Path)
+    FAssetId MakeMaterialAssetId(const FString& LibraryName, const FString& MaterialName)
     {
-        if (Path.size() >= 2 && Path[1] == L':')
-        {
-            return true;
-        }
-
-        return Path.size() >= 2 && Path[0] == L'\\' && Path[1] == L'\\';
-    }
-
-    void NormalizePathSeparators(FWString& Path)
-    {
-        std::replace(Path.begin(), Path.end(), L'/', L'\\');
+        FAssetId Id;
+        Id.Type = EAssetType::Material;
+        Id.PackageName = LibraryName;
+        Id.ObjectName = MaterialName;
+        return Id;
     }
 
     std::string_view TrimView(std::string_view View)
@@ -114,43 +100,135 @@ namespace
 
 bool FMaterialLoader::CanLoad(const FWString& Path, const FAssetLoadParams& Params) const
 {
-    if (Path.empty())
-        return false;
-
     if (Params.ExplicitType != EAssetType::Unknown && Params.ExplicitType != EAssetType::Material)
     {
         return false;
     }
 
-    const fs::path FilePath(Path);
-    FWString       Extension = FilePath.extension().native();
-    std::transform(Extension.begin(), Extension.end(), Extension.begin(),
-                   [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+    if (HasExtension(Path, {L".mtl"}))
+    {
+        return true;
+    }
 
-    return Extension == L".mtl";
+    if (HasExtension(Path, {L".uasset"}))
+    {
+        return IsUAssetOfType(Path, EUAssetBinaryType::Material);
+    }
+
+    return false;
 }
 
 EAssetType FMaterialLoader::GetAssetType() const { return EAssetType::Material; }
-
-uint64 FMaterialLoader::MakeBuildSignature(const FAssetLoadParams& Params) const
-{
-    (void)Params;
-    uint64 Hash = 14695981039346656037ull;
-    Hash ^= static_cast<uint64>(GetAssetType());
-    Hash *= 1099511628211ull;
-    return Hash;
-}
 
 UAsset* FMaterialLoader::LoadAsset(const FSourceRecord& Source, const FAssetLoadParams& Params)
 {
     (void)Params;
 
+    const bool bIsUAsset = HasExtension(Source.NormalizedPath, {L".uasset"});
+    if (bIsUAsset)
+    {
+        FString MaterialName;
+        FMaterial MaterialData;
+        if (!ParseUAssetMaterial(Source, MaterialName, MaterialData))
+        {
+            UE_LOG(Asset, ELogVerbosity::Warning,
+                   "[MaterialLoader] Failed to parse .uasset file. Path=%s ",
+                   WidePathToUtf8(Source.NormalizedPath).c_str());
+            return nullptr;
+        }
+
+        Engine::Asset::UMaterial* MatAsset = new Engine::Asset::UMaterial();
+        if (AssetManager)
+        {
+            auto LoadTextureForMaterial = [&](const FString& InMapPath, bool bSRGB,
+                                              bool        bIsNormalMap,
+                                              const char* LogName,
+                                              Engine::Asset::UMaterial::EMaterialTextureSlot Slot)
+                -> UTexture2DAsset*
+            {
+                if (InMapPath.empty())
+                {
+                    return nullptr;
+                }
+
+                const FWString WideTexPath = NarrowPathToWidePath(InMapPath);
+                if (WideTexPath.empty())
+                {
+                    UE_LOG(Asset, ELogVerbosity::Warning,
+                           "[MaterialLoader] Failed to decode %s texture path. RawPath=%s",
+                           LogName, InMapPath.c_str());
+                    return nullptr;
+                }
+
+                FAssetLoadParams TexParams;
+                TexParams.ExplicitType = EAssetType::Texture;
+                TexParams.TextureSettings.bSRGB = bSRGB;
+                TexParams.TextureSettings.bIsNormalMap = bIsNormalMap;
+
+                UAsset* LoadedTex = AssetManager->Load(WideTexPath, TexParams);
+                if (LoadedTex)
+                {
+                    UTexture2DAsset* TexAsset = static_cast<UTexture2DAsset*>(LoadedTex);
+                    MatAsset->SetTextureDependency(Slot, TexAsset);
+                    return TexAsset;
+                }
+
+                UE_LOG(Asset, ELogVerbosity::Warning,
+                       "[MaterialLoader] Failed to load %s texture. Path=%s", LogName,
+                       WidePathToUtf8(WideTexPath).c_str());
+                return nullptr;
+            };
+
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    MaterialData.DiffuseMapPath, true, false, "Diffuse",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Diffuse))
+            {
+                MaterialData.DiffuseTexture = Tex->GetResource();
+            }
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    MaterialData.AmbientMapPath, false, false, "Ambient",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Ambient))
+            {
+                MaterialData.AmbientTexture = Tex->GetResource();
+            }
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    MaterialData.SpecularHighlightMapPath, false, false, "Specular",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Specular))
+            {
+                MaterialData.SpecularTexture = Tex->GetResource();
+            }
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    MaterialData.NormalMapPath, false, true, "Normal",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Normal))
+            {
+                MaterialData.NormalTexture = Tex->GetResource();
+            }
+        }
+
+        if (MaterialName.empty())
+        {
+            const std::filesystem::path FilePath(Source.NormalizedPath);
+            MaterialName = WidePathToUtf8(FilePath.stem().native());
+        }
+        MatAsset->Initialize(Source, MaterialData, MaterialName);
+
+        if (AssetManager)
+        {
+            FAssetId Id;
+            Id.Type = EAssetType::Material;
+            Id.PackageName = WidePathToUtf8(Source.NormalizedPath);
+            Id.ObjectName = MaterialName;
+            AssetManager->RegisterAssetByIdAlias(Id, MatAsset);
+        }
+
+        return MatAsset;
+    }
+
     // 1. 힙에 리소스 할당
-    std::shared_ptr<FMaterialResource> MatResource = std::make_shared<FMaterialResource>();
-    MatResource->Reset();
+    TMap<FString, FMaterial> ParsedMaterials;
 
     // 2. 파싱
-    if (!ParseMtlText(Source, *MatResource))
+    if (!ParseMtlText(Source, ParsedMaterials))
     {
         UE_LOG(Asset, ELogVerbosity::Warning,
                "[MaterialLoader] Failed to parse .mtl file. Path=%s ",
@@ -160,13 +238,12 @@ UAsset* FMaterialLoader::LoadAsset(const FSourceRecord& Source, const FAssetLoad
     }
 
     // 3. 에셋 래퍼 생성 및 반환
-    Engine::Asset::UMaterial* NewMatAsset = new Engine::Asset::UMaterial();
-    NewMatAsset->Initialize(Source, MatResource);
-
     const std::filesystem::path MtlPath(Source.NormalizedPath);
     const FWString LibraryNameWide = MtlPath.stem().native();
     const FString  LibraryName = WidePathToUtf8(LibraryNameWide);
-    NewMatAsset->SetMaterialLibraryName(LibraryName);
+    Engine::Asset::UMaterialLibrary* NewMatAsset = new Engine::Asset::UMaterialLibrary();
+    TMap<FString, FAssetId> MaterialRefs;
+    Engine::Asset::UMaterialLibrary* ExistingLibrary = nullptr;
 
     if (AssetManager)
     {
@@ -174,11 +251,40 @@ UAsset* FMaterialLoader::LoadAsset(const FSourceRecord& Source, const FAssetLoad
         const fs::path MtlFilePath(Source.NormalizedPath);
         const fs::path MtlDir = MtlFilePath.parent_path();
 
-        for (auto& Pair : MatResource->Materials)
+        FAssetKey LibraryKey;
+        LibraryKey.Type = GetAssetType();
+        LibraryKey.NormalizedPath = Source.NormalizedPath;
+        LibraryKey.BuildSignature = MakeBuildSignature(Params);
+        ExistingLibrary = Cast<Engine::Asset::UMaterialLibrary>(
+            AssetManager->FindLoadedAsset(LibraryKey));
+
+        for (auto& Pair : ParsedMaterials)
         {
+            Engine::Asset::UMaterial* SubAsset = nullptr;
+            if (!Pair.first.empty())
+            {
+                const FAssetId SubAssetId = MakeMaterialAssetId(LibraryName, Pair.first);
+                MaterialRefs.insert_or_assign(Pair.first, SubAssetId);
+                if (UAsset* ExistingAsset = AssetManager->FindAssetById(SubAssetId))
+                {
+                    SubAsset = Cast<Engine::Asset::UMaterial>(ExistingAsset);
+                }
+                if (!SubAsset)
+                {
+                    SubAsset = new Engine::Asset::UMaterial();
+                    AssetManager->RegisterAssetById(SubAssetId, SubAsset);
+                }
+                else
+                {
+                    SubAsset->ClearTextureDependencies();
+                }
+            }
+
             auto LoadTextureForMaterial = [&](const FString& InMapPath, bool bSRGB,
                                               bool        bIsNormalMap,
-                                              const char* LogName) -> FTextureResource*
+                                              const char* LogName,
+                                              Engine::Asset::UMaterial::EMaterialTextureSlot Slot)
+                -> UTexture2DAsset*
             {
                 if (InMapPath.empty())
                 {
@@ -204,8 +310,11 @@ UAsset* FMaterialLoader::LoadAsset(const FSourceRecord& Source, const FAssetLoad
                 if (LoadedTex)
                 {
                     UTexture2DAsset* TexAsset = static_cast<UTexture2DAsset*>(LoadedTex);
-                    NewMatAsset->AddTextureDependency(TexAsset);
-                    return TexAsset->GetResource();
+                    if (SubAsset)
+                    {
+                        SubAsset->SetTextureDependency(Slot, TexAsset);
+                    }
+                    return TexAsset;
                 }
                 // 로드 실패 시 에러 로그 출력 (LogName을 활용해 어떤 맵이 실패했는지 명시)
                 UE_LOG(Asset, ELogVerbosity::Warning,
@@ -213,23 +322,56 @@ UAsset* FMaterialLoader::LoadAsset(const FSourceRecord& Source, const FAssetLoad
                        WidePathToUtf8(WideTexPath).c_str());
                 return nullptr;
             };
-            FMaterialData& CurrentMaterial = Pair.second;
+            FMaterial& CurrentMaterial = Pair.second;
 
-            CurrentMaterial.DiffuseTexture =
-                LoadTextureForMaterial(CurrentMaterial.DiffuseMapPath, true, false, "Diffuse");
-            CurrentMaterial.AmbientTexture =
-                LoadTextureForMaterial(CurrentMaterial.AmbientMapPath, false, false, "Ambient");
-            CurrentMaterial.SpecularTexture = LoadTextureForMaterial(
-                CurrentMaterial.SpecularHighlightMapPath, false, false, "Specular");
-            CurrentMaterial.NormalTexture =
-                LoadTextureForMaterial(CurrentMaterial.NormalMapPath, false, true, "Normal");
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    CurrentMaterial.DiffuseMapPath, true, false, "Diffuse",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Diffuse))
+            {
+                CurrentMaterial.DiffuseTexture = Tex->GetResource();
+            }
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    CurrentMaterial.AmbientMapPath, false, false, "Ambient",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Ambient))
+            {
+                CurrentMaterial.AmbientTexture = Tex->GetResource();
+            }
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    CurrentMaterial.SpecularHighlightMapPath, false, false, "Specular",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Specular))
+            {
+                CurrentMaterial.SpecularTexture = Tex->GetResource();
+            }
+            if (UTexture2DAsset* Tex = LoadTextureForMaterial(
+                    CurrentMaterial.NormalMapPath, false, true, "Normal",
+                    Engine::Asset::UMaterial::EMaterialTextureSlot::Normal))
+            {
+                CurrentMaterial.NormalTexture = Tex->GetResource();
+            }
+
+            if (SubAsset)
+            {
+                SubAsset->Initialize(Source, CurrentMaterial, Pair.first);
+            }
+        }
+
+        if (ExistingLibrary)
+        {
+            for (const auto& Pair : ExistingLibrary->GetMaterialRefs())
+            {
+                if (MaterialRefs.find(Pair.first) == MaterialRefs.end())
+                {
+                    AssetManager->UnregisterAssetById(Pair.second);
+                }
+            }
         }
     }
+    NewMatAsset->Initialize(Source, LibraryName, std::move(MaterialRefs));
     return NewMatAsset;
 }
 
 bool FMaterialLoader::ParseMtlText(const FSourceRecord& Source,
-                                   FMaterialResource&   OutResource) const
+                                   TMap<FString, FMaterial>& OutMaterials) const
 {
     if (!Source.bFileBytesLoaded || Source.FileBytes.empty())
         return false;
@@ -239,7 +381,7 @@ bool FMaterialLoader::ParseMtlText(const FSourceRecord& Source,
                               Source.FileBytes.size());
 
     FString       CurrentMaterialName = "";
-    FMaterialData CurrentData;
+    FMaterial CurrentData;
     bool          bHasMaterial = false;
 
     // --- 파싱 헬퍼 함수들 ---
@@ -290,7 +432,7 @@ bool FMaterialLoader::ParseMtlText(const FSourceRecord& Source,
         {
             if (bHasMaterial && !CurrentMaterialName.empty())
             {
-                if (OutResource.Materials.find(CurrentMaterialName) != OutResource.Materials.end())
+                if (OutMaterials.find(CurrentMaterialName) != OutMaterials.end())
                 {
                     UE_LOG(Asset, ELogVerbosity::Warning,
                            "[MaterialLoader] Duplicate material name '%s' in .mtl '%s'. "
@@ -298,7 +440,7 @@ bool FMaterialLoader::ParseMtlText(const FSourceRecord& Source,
                            CurrentMaterialName.c_str(),
                            WidePathToUtf8(Source.NormalizedPath).c_str());
                 }
-                OutResource.Materials[CurrentMaterialName] = CurrentData;
+                OutMaterials[CurrentMaterialName] = CurrentData;
             }
 
             std::string_view MatName = GetNextToken(LineView);
@@ -309,11 +451,11 @@ bool FMaterialLoader::ParseMtlText(const FSourceRecord& Source,
                        WidePathToUtf8(Source.NormalizedPath).c_str());
                 bHasMaterial = false;
                 CurrentMaterialName.clear();
-                CurrentData = FMaterialData();
+                CurrentData = FMaterial();
                 continue;
             }
             CurrentMaterialName = FString(MatName);
-            CurrentData = FMaterialData();
+            CurrentData = FMaterial();
             bHasMaterial = true;
         }
         else if (Header == "Ka")
@@ -409,21 +551,16 @@ bool FMaterialLoader::ParseMtlText(const FSourceRecord& Source,
     // 루프가 끝난 후 마지막 재질 저장
     if (bHasMaterial && !CurrentMaterialName.empty())
     {
-        if (OutResource.Materials.find(CurrentMaterialName) != OutResource.Materials.end())
+        if (OutMaterials.find(CurrentMaterialName) != OutMaterials.end())
         {
             UE_LOG(Asset, ELogVerbosity::Warning,
                    "[MaterialLoader] Duplicate material name '%s' in .mtl '%s'. "
                    "Overwriting previous definition.",
                    CurrentMaterialName.c_str(), WidePathToUtf8(Source.NormalizedPath).c_str());
         }
-        OutResource.Materials[CurrentMaterialName] = CurrentData;
+        OutMaterials[CurrentMaterialName] = CurrentData;
     }
-
-    // 주석 처리된 로그 부분 유지
-    // for (const auto& Pair : OutResource.Materials)
-    // { ... }
-
-    return !OutResource.Materials.empty();
+    return !OutMaterials.empty();
 }
 
 FWString FMaterialLoader::ResolveSiblingPath(const FWString& BaseFilePath,
@@ -446,21 +583,75 @@ FWString FMaterialLoader::ResolveSiblingPath(const FWString& BaseFilePath,
         return NormalizedRelative;
     }
 
-    const fs::path BasePath(BaseFilePath);
-    FWString BaseDirectory = BasePath.parent_path().native();
+    FWString BaseDirectory = BaseFilePath;
     NormalizePathSeparators(BaseDirectory);
 
-    if (!BaseDirectory.empty() && BaseDirectory.back() != L'\\')
+    const size_t LastSep = BaseDirectory.find_last_of(L"\\/");
+    if (LastSep != FWString::npos)
     {
-        BaseDirectory += L'\\';
+        BaseDirectory = BaseDirectory.substr(0, LastSep + 1);
+    }
+    else
+    {
+        BaseDirectory.clear();
     }
 
     return BaseDirectory + NormalizedRelative;
 }
 
-FString FMaterialLoader::WidePathToUtf8(const FWString& Path) const
+
+bool FMaterialLoader::ParseUAssetMaterial(const FSourceRecord& Source, FString& OutMaterialName,
+                                           FMaterial& OutMaterial) const
 {
-    const fs::path      FilePath(Path);
-    const std::u8string Utf8Path = FilePath.u8string();
-    return FString(reinterpret_cast<const char*>(Utf8Path.data()), Utf8Path.size());
+    FWindowsBinReader Ar(Source.NormalizedPath);
+    if (!Ar.IsValid())
+    {
+        return false;
+    }
+
+    FUAssetBinaryHeader Header;
+    Header.Magic = 0;
+    Header.Version = 0;
+    uint32 TypeValue = 0;
+    Header.AssetType = EUAssetBinaryType::Unknown;
+    Header.SourceHash = 0;
+
+    Ar << Header.Magic;
+    Ar << Header.Version;
+    Ar << TypeValue;
+    Header.AssetType = static_cast<EUAssetBinaryType>(TypeValue);
+    Ar << Header.SourceHash;
+
+    if (Header.Magic != kUAssetMagic || Header.Version != kUAssetVersion ||
+        Header.AssetType != EUAssetBinaryType::Material)
+    {
+        return false;
+    }
+
+    Ar << OutMaterialName;
+
+    Ar.Serialize(&OutMaterial.AmbientColor, sizeof(FVector));
+    Ar.Serialize(&OutMaterial.DiffuseColor, sizeof(FVector));
+    Ar.Serialize(&OutMaterial.SpecularColor, sizeof(FVector));
+    Ar.Serialize(&OutMaterial.EmissiveColor, sizeof(FVector));
+    Ar.Serialize(&OutMaterial.TransmissionFilter, sizeof(FVector));
+
+    Ar << OutMaterial.SpecularHighlight;
+    Ar << OutMaterial.OpticalDensity;
+    Ar << OutMaterial.Opacity;
+    Ar << OutMaterial.IlluminationModel;
+
+    Ar << OutMaterial.AmbientMapPath;
+    Ar << OutMaterial.DiffuseMapPath;
+    Ar << OutMaterial.SpecularHighlightMapPath;
+    Ar << OutMaterial.NormalMapPath;
+
+    Ar.Serialize(&OutMaterial.UVScrollSpeed, sizeof(FVector2));
+
+    OutMaterial.AmbientTexture = nullptr;
+    OutMaterial.DiffuseTexture = nullptr;
+    OutMaterial.SpecularTexture = nullptr;
+    OutMaterial.NormalTexture = nullptr;
+
+    return !Ar.HasError();
 }

@@ -17,15 +17,16 @@ namespace Engine::Component
 
     void UMeshComponent::InitializeMaterialSlots(uint32 NumSections)
     {
-        OverrideMaterials.resize(NumSections, nullptr);
+        OverrideMaterials.assign(NumSections, nullptr);
     }
 
     void UMeshComponent::SetMaterial(uint32 Index, Asset::UMaterialInterface* InMaterial)
     {
-        if (Index < OverrideMaterials.size())
+        if (Index >= OverrideMaterials.size())
         {
-            OverrideMaterials[Index] = InMaterial;
+            OverrideMaterials.resize(Index + 1, nullptr);
         }
+        OverrideMaterials[Index] = InMaterial;
     }
 
     Asset::UMaterialInterface* UMeshComponent::GetMaterial(uint32 Index) const
@@ -36,31 +37,6 @@ namespace Engine::Component
     uint32 UMeshComponent::GetNumMaterials() const
     {
         return static_cast<uint32>(OverrideMaterials.size());
-    }
-
-    FString UMeshComponent::GetSubMaterialName(uint32 Index) const
-    {
-        return "";
-    }
-
-    void UMeshComponent::SetUVScrollSpeedOverride(uint32 SlotIndex, const FVector2& Speed)
-    {
-        UVScrollOverrides[SlotIndex] = Speed;
-    }
-
-    FVector2 UMeshComponent::GetUVScrollSpeedOverride(uint32 SlotIndex) const
-    {
-        auto It = UVScrollOverrides.find(SlotIndex);
-        if (It != UVScrollOverrides.end())
-        {
-            return It->second;
-        }
-        return FVector2::ZeroVector;
-    }
-
-    bool UMeshComponent::HasUVScrollSpeedOverride(uint32 SlotIndex) const
-    {
-        return UVScrollOverrides.find(SlotIndex) != UVScrollOverrides.end();
     }
 
     void UMeshComponent::DescribeProperties(FComponentPropertyBuilder& Builder)

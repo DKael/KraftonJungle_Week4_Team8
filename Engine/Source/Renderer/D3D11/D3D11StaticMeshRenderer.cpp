@@ -111,7 +111,7 @@ void FD3D11StaticMeshRenderer::Flush()
     // 각 모델별 순회 렌더링
     for (const FStaticMeshRenderItem& DrawItem : StaticMeshDraws)
     {
-        const FStaticMeshResource* Resource = DrawItem.RenderResource;
+        const FStaticMesh* Resource = DrawItem.RenderResource;
         if (Resource->VertexBuffer == nullptr || Resource->IndexBuffer == nullptr)
         {
             continue;
@@ -141,14 +141,14 @@ void FD3D11StaticMeshRenderer::Flush()
         {
             const FSubMesh& Sub = Resource->SubMeshes[i];
 
-            const FMaterialData* MaterialData = nullptr;
+            const FMaterial* MaterialData = nullptr;
 
-            if (i < DrawItem.MaterialBindings.size())
+            if (i < DrawItem.Materials.size())
             {
-                const FStaticMeshMaterialBinding& Binding = DrawItem.MaterialBindings[i];
-                if (Binding.Material != nullptr)
+                Engine::Asset::UMaterialInterface* Material = DrawItem.Materials[i];
+                if (Material != nullptr)
                 {
-                    MaterialData = Binding.Material->GetMaterialData(Binding.SubMaterialName);
+                    MaterialData = Material->GetMaterialData();
                 }
             }
 
@@ -165,19 +165,12 @@ void FD3D11StaticMeshRenderer::Flush()
                            MaterialData->DiffuseColor.Z, MaterialData->Opacity);
                 
                 // --- 오버라이드 우선 적용 로직 ---
-                auto ItOverride = DrawItem.UVScrollOverrides.find(i);
-                if (ItOverride != DrawItem.UVScrollOverrides.end())
-                {
                     // 인스턴스(컴포넌트) 레벨의 오버라이드 사용
-                    Constants.ScrollSpeedX = ItOverride->second.X;
-                    Constants.ScrollSpeedY = ItOverride->second.Y;
-                }
-                else
-                {
+                    Constants.ScrollSpeedX = MaterialData->UVScrollSpeed.X;
+                    Constants.ScrollSpeedY = MaterialData->UVScrollSpeed.Y;
                     // 에셋(머티리얼) 레벨의 기본값 사용
                     Constants.ScrollSpeedX = MaterialData->UVScrollSpeed.X;
                     Constants.ScrollSpeedY = MaterialData->UVScrollSpeed.Y;
-                }
             }
             else
             {
@@ -190,14 +183,6 @@ void FD3D11StaticMeshRenderer::Flush()
             {
                 continue;
             }
-            /*if (CurrentPassParams.ViewMode == EViewModeIndex::VMI_Wireframe)
-            {
-                BindDefaultMaterial();
-            }
-            else
-            {
-                BindMaterial(MaterialData);
-            }*/
             BindMaterial(MaterialData);
             RHI->DrawIndexed(Sub.IndexCount, Sub.StartIndexLocation, 0);
             BindDefaultMaterial();
@@ -334,7 +319,7 @@ void FD3D11StaticMeshRenderer::BindWireframeRasterizer()
         RHI->SetRasterizerState(WireframeRasterizerState.Get());
 }
 
-void FD3D11StaticMeshRenderer::BindMaterial(const FMaterialData* InMaterialData)
+void FD3D11StaticMeshRenderer::BindMaterial(const FMaterial* InMaterialData)
 {
     if (RHI == nullptr)
     {

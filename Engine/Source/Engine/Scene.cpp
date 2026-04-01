@@ -14,6 +14,7 @@
 #include "Renderer/RenderAsset/SubUVAtlasResource.h"
 #include "Renderer/Types/RenderItem.h"
 #include "Core/Misc/BitMaskEnum.h"
+#include "Core/Geometry/Primitives/AABBUtility.h"
 
 namespace
 {
@@ -197,7 +198,7 @@ void FScene::BuildRenderData(FSceneFrameRenderData& OutRenderData,
                     continue;
 
                 Engine::Asset::UStaticMesh* StaticMeshAsset = StaticMeshComp->GetStaticMesh();
-                const FStaticMeshResource*  Resource =
+                const FStaticMesh*  Resource =
                     (StaticMeshAsset != nullptr) ? StaticMeshAsset->GetRenderResource() : nullptr;
 
                 if (StaticMeshAsset == nullptr || Resource == nullptr)
@@ -216,24 +217,21 @@ void FScene::BuildRenderData(FSceneFrameRenderData& OutRenderData,
 
                 // 3. 서브 메시 개수만큼 매핑된 머티리얼 포인터 수집
                 const size_t SubMeshCount = Resource->SubMeshes.size();
-
-                uint32 NumSubMeshes = static_cast<uint32>(SubMeshCount);
+                const uint32 NumSubMeshes = static_cast<uint32>(SubMeshCount);
+                MeshItem.Materials.reserve(NumSubMeshes);
                 for (uint32 i = 0; i < NumSubMeshes; ++i)
                 {
-                    FStaticMeshMaterialBinding Binding = {};
-                    Binding.Material = StaticMeshComp->GetMaterial(i);
-                    Binding.SubMaterialName = StaticMeshComp->GetSubMaterialName(i);
-                    MeshItem.MaterialBindings.push_back(Binding);
+                    MeshItem.Materials.push_back(StaticMeshComp->GetMaterial(i));
+                }
+                if (MeshItem.Materials.size() < NumSubMeshes)
+                {
+                    MeshItem.Materials.resize(NumSubMeshes, nullptr);
 
-                    // UV 오버라이드가 있다면 추가
-                    if (StaticMeshComp->HasUVScrollSpeedOverride(i))
-                    {
-                        MeshItem.UVScrollOverrides[i] = StaticMeshComp->GetUVScrollSpeedOverride(i);
-                    }
                 }
 
                 // 4. 상태 및 피킹 데이터
-                MeshItem.WorldAABB = StaticMeshComp->GetWorldAABB();
+                MeshItem.WorldAABB = Geometry::TransformAABB(Resource->BoundingBox,
+                                                            StaticMeshComp->GetWorldMatrix());
                 MeshItem.State.ObjectId = ObjectId;
                 MeshItem.State.bShowBounds = StaticMeshComp->IsShowBounds();
                 MeshItem.State.SetVisible(Actor->IsVisible());
