@@ -249,7 +249,7 @@ void FObjViewerEngineLoop::FitCameraToMesh()
     // Normalize extreme sizes to fit the camera
     if (BB.Max.Size() > 10000)
     {
-        AbsoluteScale = 0.0001;
+        AbsoluteScale = 1 / BB.Max.Size();
     }
 
     const FVector Center = (BB.Max + BB.Min) * 0.5f * AbsoluteScale;
