@@ -264,7 +264,8 @@ namespace
         return true;
     }
 
-    void ShowStatToggleDialog(const FEditorViewportClient& ViewportClient, EViewportStatFlags InStat)
+    void ShowStatToggleDialog(const FEditorViewportClient& ViewportClient,
+                              EViewportStatFlags           InStat)
     {
         switch (InStat)
         {
@@ -316,9 +317,10 @@ namespace
     }
 
     /**
-     * @brief 주어진 도킹 노드 트리에서 중앙 도킹 노드(게임 월드가 그려지는 중앙 패널)를 재귀적으로 탐색하여 반환합니다.
-     * 중앙 노드가 항상 트리의 루트에 위치한다는 보장이 없기 때문에 탐색할 필요가 있습니다.
-     * ChildNodes[0], ChildNodes[1] 접근은 internal 구조라 imgui_internal.h가 필요합니다.
+     * @brief 주어진 도킹 노드 트리에서 중앙 도킹 노드(게임 월드가 그려지는 중앙 패널)를 재귀적으로
+     * 탐색하여 반환합니다. 중앙 노드가 항상 트리의 루트에 위치한다는 보장이 없기 때문에 탐색할
+     * 필요가 있습니다. ChildNodes[0], ChildNodes[1] 접근은 internal 구조라 imgui_internal.h가
+     * 필요합니다.
      */
     ImGuiDockNode* FindCentralDockNode(ImGuiDockNode* Node)
     {
@@ -348,7 +350,8 @@ namespace
     /**
      * @brief 주어진 위치와 크기를 기반으로 FViewportAvailableArea 구조체를 생성하는 헬퍼
      */
-    FViewportAvailableArea MakeViewportAreaFromRect(const ImVec2& Pos, const ImVec2& Size, bool bValid = true)
+    FViewportAvailableArea MakeViewportAreaFromRect(const ImVec2& Pos, const ImVec2& Size,
+                                                    bool bValid = true)
     {
         FViewportAvailableArea Area;
         Area.X = Pos.x;
@@ -377,8 +380,7 @@ namespace
 
         // imgui.ini가 아직 없는 첫 실행에서만 기본 패널 배치를 한 번 만듭니다.
         ImGui::DockBuilderRemoveNode(DockSpaceId);
-        ImGui::DockBuilderAddNode(DockSpaceId,
-                                  RootDockSpaceFlags | ImGuiDockNodeFlags_DockSpace);
+        ImGui::DockBuilderAddNode(DockSpaceId, RootDockSpaceFlags | ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(DockSpaceId, DockSpaceSize);
 
         ImGuiID MainNode = DockSpaceId;
@@ -387,8 +389,7 @@ namespace
         ImGuiID RightBottomNode = 0;
 
         ImGui::DockBuilderSplitNode(MainNode, ImGuiDir_Right, 0.25f, &RightNode, &MainNode);
-        ImGui::DockBuilderSplitNode(RightNode, ImGuiDir_Up, 0.4f, &RightTopNode,
-                                    &RightBottomNode);
+        ImGui::DockBuilderSplitNode(RightNode, ImGuiDir_Up, 0.4f, &RightTopNode, &RightBottomNode);
 
         // 중앙은 WindowOverlayManager가 실제 viewport 작업 영역으로 사용하므로 비워 둡니다.
         // 우측은 Unreal 스타일에 맞게 Outliner를 위, Details를 아래에 둡니다.
@@ -730,11 +731,11 @@ bool FEditor::LoadSceneFromPath(const std::filesystem::path& FilePath)
 void FEditor::CaptureCameraState()
 {
     const FViewportCamera& Cam = ViewportClient.GetCamera();
-    CameraState.Location    = Cam.GetLocation();
-    CameraState.Rotation    = Cam.GetRotation();
-    CameraState.FOV         = Cam.GetFOV();
-    CameraState.NearPlane   = Cam.GetNearPlane();
-    CameraState.FarPlane    = Cam.GetFarPlane();
+    CameraState.Location = Cam.GetLocation();
+    CameraState.Rotation = Cam.GetRotation();
+    CameraState.FOV = Cam.GetFOV();
+    CameraState.NearPlane = Cam.GetNearPlane();
+    CameraState.FarPlane = Cam.GetFarPlane();
     CameraState.OrthoHeight = Cam.GetOrthoHeight();
 }
 
@@ -843,7 +844,7 @@ void FEditor::Tick(float DeltaTime, Engine::ApplicationCore::FInputSystem* Input
         CurScene->Tick(DeltaTime);
     }
 
-    //BuildRenderData();
+    // BuildRenderData();
 }
 
 void FEditor::OnWindowResized(float Width, float Height)
@@ -1376,7 +1377,7 @@ void FEditor::DrawAboutPopup()
         ImGui::TextWrapped("Includes third-party software such as Dear ImGui and nlohmann/json.");
         ImGui::PopStyleColor();
         ImGui::Spacing();
-        ImGui::SeparatorText("First Contributors");  
+        ImGui::SeparatorText("First Contributors");
         ImGui::Spacing();
 
         for (size_t ContributorIndex = 0; ContributorIndex < ContributorDisplayNames.size();
@@ -1391,28 +1392,28 @@ void FEditor::DrawAboutPopup()
             ImGui::PopStyleColor();
             ImGui::Unindent();
             ImGui::Spacing();
-            }
+        }
 
-            ImGui::Spacing();
-            ImGui::SeparatorText("Second Contributors");
-            ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::SeparatorText("Second Contributors");
+        ImGui::Spacing();
 
-         static const std::array<FWString, 4> SecondContributorNames = {
-             L"\uAE40\uAE30\uD6C8", // 김기훈
-             L"\uAE40\uD615\uB3C4", // 김형도
-             L"\uAE40\uD615\uC900", // 김형준
-             L"\uC7A5\uBBFC\uC900", // 장민준
-         };
+        static const std::array<FWString, 4> SecondContributorNames = {
+            L"\uAE40\uAE30\uD6C8", // 김기훈
+            L"\uAE40\uD615\uB3C4", // 김형도
+            L"\uAE40\uD615\uC900", // 김형준
+            L"\uC7A5\uBBFC\uC900", // 장민준
+        };
 
-         static const std::array<FWString, 4> SecondContributorSummaries = {
-             L"Editor UI & Tools, Material editing and UV scroll",
-             L"OBJ parser, Binary mesh serialization and Material editing",
-             L"Multi-viewport architecture, Camera systems and Viewer core",
-             L"Stat overlay (FPS/Memory), Console engine and Timer management",
-         };
+        static const std::array<FWString, 4> SecondContributorSummaries = {
+            L"Editor UI & Tools, Material editing and UV scroll",
+            L"OBJ parser, Binary mesh serialization and Material editing",
+            L"Multi-viewport architecture, Camera systems and Viewer core",
+            L"Stat overlay (FPS/Memory), Console engine and Timer management",
+        };
 
-            for (size_t i = 0; i < SecondContributorNames.size(); ++i)
-            {
+        for (size_t i = 0; i < SecondContributorNames.size(); ++i)
+        {
             const FString NameUtf8 = WideToUtf8(SecondContributorNames[i]);
             const FString SummaryUtf8 = WideToUtf8(SecondContributorSummaries[i]);
             ImGui::BulletText("%s", NameUtf8.c_str());
@@ -1422,11 +1423,12 @@ void FEditor::DrawAboutPopup()
             ImGui::PopStyleColor();
             ImGui::Unindent();
             ImGui::Spacing();
-            }
+        }
 
-            ImGui::Spacing();
+        ImGui::Spacing();
 
-            if (AboutImageResource != nullptr && AboutImageResource->GetSRV() != nullptr &&            AboutImageResource->Width > 0 && AboutImageResource->Height > 0)
+        if (AboutImageResource != nullptr && AboutImageResource->GetSRV() != nullptr &&
+            AboutImageResource->Width > 0 && AboutImageResource->Height > 0)
         {
             ImGui::Spacing();
             ImGui::Separator();
@@ -1519,12 +1521,13 @@ void FEditor::DrawRootDockSpace()
     FViewportAvailableArea ComputedArea;
     if (DockSpaceWidth > 0.0f && DockSpaceHeight > 0.0f)
     {
-        ComputedArea = MakeViewportAreaFromRect(ImVec2(DockSpaceX, DockSpaceY), ImVec2(DockSpaceWidth, DockSpaceHeight));
+        ComputedArea = MakeViewportAreaFromRect(ImVec2(DockSpaceX, DockSpaceY),
+                                                ImVec2(DockSpaceWidth, DockSpaceHeight));
     }
     else
     {
-        ComputedArea = MakeViewportAreaFromRect(ImVec2(DockSpaceX, DockSpaceY),
-                                                ImVec2(SafeDockSpaceWidth, SafeDockSpaceHeight), false);
+        ComputedArea = MakeViewportAreaFromRect(
+            ImVec2(DockSpaceX, DockSpaceY), ImVec2(SafeDockSpaceWidth, SafeDockSpaceHeight), false);
     }
 
     ImGui::SetNextWindowPos(ImVec2(DockSpaceX, DockSpaceY));
@@ -1598,9 +1601,8 @@ void FEditor::DrawPanel()
         {
             if (Panel != nullptr && Panel->ViewportClient != nullptr)
             {
-                Panel->ViewportClient->DrawViewportOverlay(
-                    ImVec2(Panel->PosX, Panel->PosY),
-                    ImVec2(Panel->Width, Panel->Height));
+                Panel->ViewportClient->DrawViewportOverlay(ImVec2(Panel->PosX, Panel->PosY),
+                                                           ImVec2(Panel->Width, Panel->Height));
             }
         }
     }
@@ -1620,9 +1622,7 @@ void FEditor::DrawPanel()
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-void FEditor::BuildRenderData()
-{
-}
+void FEditor::BuildRenderData() {}
 
 // 다중 뷰포트 머지 후에 active viewport를 토글하는 방식으로 변경 예정
 void FEditor::ToggleActiveViewportStat(EViewportStatFlags StatFlag)
