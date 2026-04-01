@@ -324,7 +324,7 @@ void FEditor::Create()
     // so there is only one SelectedActors array — eliminates stale-pointer crashes on actor delete.
     WindowOverlayManager->SetSharedSelectionController(&ViewportClient.GetSelectionController());
 
-    WindowOverlayManager->SetViewportLayout(EViewportLayout::ColumnTwoRow);
+    WindowOverlayManager->SetViewportLayout(EViewportLayout::Single);
 
     // SubViewports and Splitter controls
     OverlayInputContext = new FViewportOverlayInputContext(WindowOverlayManager);
@@ -467,6 +467,7 @@ std::filesystem::path FEditor::GetSceneDirectory() const
 
 bool FEditor::SaveScene()
 {
+    CameraState.FromCamera(ViewportClient.GetCamera()); // Capture current camera state for saving with the scene
     if (!SceneDocument.CurrentScenePath.empty())
     {
         return SaveSceneToPath(SceneDocument.CurrentScenePath, true);

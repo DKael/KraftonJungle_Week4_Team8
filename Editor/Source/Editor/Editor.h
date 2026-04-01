@@ -22,6 +22,8 @@
 #include "Renderer/SceneRenderData.h"
 #include "Renderer/SceneView.h"
 
+#include "Camera/ViewportCameraState.h"
+
 #include <filesystem>
 #include <memory>
 
@@ -151,9 +153,10 @@ class FEditor
     FEditorMenuRegistry   MenuRegistry;
     IEditorChromeHost*    ChromeHost = nullptr;
 
-    FEditorRenderData EditorRenderData;
-    FSceneRenderData  SceneRenderData;
-    FSceneView        SceneView;
+    FEditorRenderData    EditorRenderData;
+    FSceneRenderData     SceneRenderData;
+    FSceneView           SceneView;
+    FViewportCameraState CameraState;
 
     FScene*             CurScene = nullptr;
     FSceneDocumentState SceneDocument;
