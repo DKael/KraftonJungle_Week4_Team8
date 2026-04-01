@@ -228,7 +228,6 @@ if exist "$(ProjectDir)..\Engine\Bin\$(Configuration)\Engine.pdb" copy /Y "$(Pro
     <ClInclude Include="Source\Viewport\Selection\ViewportSelectionController.h" />
     <ClInclude Include="Source\Viewport\Window\WindowOverlayManager.h" />
     <ClInclude Include="Source\Viewer\ViewerImGui.h" />
-    <ClInclude Include="Source\Camera\ViewportCameraState.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Source\ThirdParty\ImGui\imgui.natstepfilter" />

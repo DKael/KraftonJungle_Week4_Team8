@@ -353,9 +353,6 @@
     <ClInclude Include="Source\Viewer\ViewerImGui.h">
       <Filter>Source\Viewer</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Camera\ViewportCameraState.h">
-      <Filter>Source\Camera</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Source\ThirdParty\ImGui\imgui.natstepfilter">
