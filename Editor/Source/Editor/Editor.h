@@ -136,6 +136,8 @@ class FEditor
     std::filesystem::path GetSceneDirectory() const;
     void ResolveActorAssetReferences(AActor* Actor);
     void ResolveSceneAssetReferences(FScene* Scene);
+    void CaptureCameraState();
+    void ApplyCameraState();
 
   private:
     FEditorViewportClient ViewportClient;
