@@ -252,7 +252,8 @@ void FViewerImGui::DrawScalePanel(const FViewerUIInput& Input, FViewerUIOutput& 
 
     if (bChanged)
     {
-        Out.ModelScale     = { ScaleFactor[0], ScaleFactor[1], ScaleFactor[2] };
+        Out.ModelScale      = { ScaleFactor[0], ScaleFactor[1], ScaleFactor[2] };
+        Out.AbsoluteScale   = AbsScale;
         Out.bIsScaleChanged = true;
     }
 
