@@ -1,7 +1,10 @@
 #include "Core/CoreMinimal.h"
 #include "StaticMeshLoader.h"
 #include "Asset/StaticMesh.h"
-#include "Asset/Material.h"
+#include "Asset/UAssetBinary.h"
+#include "Core/Serialization/WindowsBinArchive.h"
+#include "Asset/MaterialLibrary.h"
+#include "Asset/MaterialInterface.h"
 #include "Renderer/D3D11/D3D11RHI.h"
 #include "Renderer/Types/VertexTypes.h"
 
@@ -10,71 +13,45 @@
 #include <cwctype>
 #include <algorithm>
 #include <string_view>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
 namespace fs = std::filesystem;
 
 namespace
 {
-    FWString NarrowPathToWidePath(const FString& NarrowPath)
+    bool IsUAssetOfType(const FWString& Path, EUAssetBinaryType Expected)
     {
-        if (NarrowPath.empty())
+        const fs::path FilePath(Path);
+        std::error_code ErrorCode;
+        if (!fs::exists(FilePath, ErrorCode) || !fs::is_regular_file(FilePath, ErrorCode))
         {
-            return {};
+            return false;
         }
 
-        auto ConvertWithCodePage = [&](UINT CodePage, DWORD Flags) -> FWString
+        FWindowsBinReader Ar(FilePath);
+        if (!Ar.IsValid())
         {
-            const int32 RequiredChars =
-                MultiByteToWideChar(CodePage, Flags, NarrowPath.data(),
-                                    static_cast<int>(NarrowPath.size()), nullptr, 0);
-            if (RequiredChars <= 0)
-            {
-                return {};
-            }
-
-            FWString WidePath(static_cast<size_t>(RequiredChars), L'\0');
-            const int32 ConvertedChars =
-                MultiByteToWideChar(CodePage, Flags, NarrowPath.data(),
-                                    static_cast<int>(NarrowPath.size()), WidePath.data(),
-                                    RequiredChars);
-            if (ConvertedChars <= 0)
-            {
-                return {};
-            }
-
-            return WidePath;
-        };
-
-        FWString WidePath = ConvertWithCodePage(CP_UTF8, MB_ERR_INVALID_CHARS);
-        if (!WidePath.empty())
-        {
-            return WidePath;
+            return false;
         }
 
-        WidePath = ConvertWithCodePage(CP_ACP, 0);
-        if (!WidePath.empty())
+        FUAssetBinaryHeader Header;
+        Header.Magic = 0;
+        Header.Version = 0;
+        uint32 TypeValue = 0;
+        Header.AssetType = EUAssetBinaryType::Unknown;
+        Header.SourceHash = 0;
+
+        Ar << Header.Magic;
+        Ar << Header.Version;
+        Ar << TypeValue;
+        Header.AssetType = static_cast<EUAssetBinaryType>(TypeValue);
+        Ar << Header.SourceHash;
+
+        if (Header.Magic != kUAssetMagic || Header.Version != kUAssetVersion)
         {
-            return WidePath;
+            return false;
         }
 
-        return ConvertWithCodePage(CP_OEMCP, 0);
-    }
-
-    bool IsAbsoluteWidePath(const FWString& Path)
-    {
-        if (Path.size() >= 2 && Path[1] == L':')
-        {
-            return true;
-        }
-
-        return Path.size() >= 2 && Path[0] == L'\\' && Path[1] == L'\\';
-    }
-
-    void NormalizePathSeparators(FWString& Path)
-    {
-        std::replace(Path.begin(), Path.end(), L'/', L'\\');
+        return Header.AssetType == Expected;
     }
 }
 
@@ -85,49 +62,58 @@ FStaticMeshLoader::FStaticMeshLoader(FD3D11RHI* InRHI, UAssetManager* InAssetMan
 
 bool FStaticMeshLoader::CanLoad(const FWString& Path, const FAssetLoadParams& Params) const
 {
-    if (Path.empty())
-        return false;
-
     if (Params.ExplicitType != EAssetType::Unknown && Params.ExplicitType != EAssetType::StaticMesh)
     {
         return false;
     }
 
-    const fs::path FilePath(Path);
-    FWString       Extension = FilePath.extension().native();
-    std::transform(Extension.begin(), Extension.end(), Extension.begin(),
-                   [](wchar_t Ch) { return static_cast<wchar_t>(std::towlower(Ch)); });
+    if (HasExtension(Path, {L".obj"}))
+    {
+        return true;
+    }
 
-    return Extension == L".obj";
+    if (HasExtension(Path, {L".uasset"}))
+    {
+        return IsUAssetOfType(Path, EUAssetBinaryType::StaticMesh);
+    }
+
+    return false;
 }
 
 EAssetType FStaticMeshLoader::GetAssetType() const { return EAssetType::StaticMesh; }
-
-uint64 FStaticMeshLoader::MakeBuildSignature(const FAssetLoadParams& Params) const
-{
-    (void)Params;
-    uint64 Hash = 14695981039346656037ull;
-    Hash ^= static_cast<uint64>(GetAssetType());
-    Hash *= 1099511628211ull;
-    return Hash;
-}
 
 UAsset* FStaticMeshLoader::LoadAsset(const FSourceRecord& Source, const FAssetLoadParams& Params)
 {
     (void)Params;
 
-    std::shared_ptr<FStaticMeshResource> MeshResource = std::make_shared<FStaticMeshResource>();
+    std::shared_ptr<FStaticMesh> MeshResource = std::make_shared<FStaticMesh>();
     MeshResource->Reset();
 
     TArray<FMeshVertexPNCT> ParsedVertices;
+    TArray<FString>         MaterialAssetPaths;
 
-    // 1. OBJ 텍스트 파싱 및 CPU 데이터 구성
-    if (!ParseObjText(Source, *MeshResource, ParsedVertices))
+    const bool bIsUAsset = HasExtension(Source.NormalizedPath, {L".uasset"});
+
+    // 1. OBJ ???????? ??CPU ????????
+    if (bIsUAsset)
     {
-        UE_LOG(Asset, ELogVerbosity::Warning,
-               "[StaticMeshLoader] Failed to parse .obj file. Path=%s",
-               WidePathToUtf8(Source.NormalizedPath).c_str());
-        return nullptr;
+        if (!ParseUAsset(Source, *MeshResource, ParsedVertices, MaterialAssetPaths))
+        {
+            UE_LOG(Asset, ELogVerbosity::Warning,
+                   "[StaticMeshLoader] Failed to parse .uasset file. Path=%s",
+                   WidePathToUtf8(Source.NormalizedPath).c_str());
+            return nullptr;
+        }
+    }
+    else
+    {
+        if (!ParseObjText(Source, *MeshResource, ParsedVertices))
+        {
+            UE_LOG(Asset, ELogVerbosity::Warning,
+                   "[StaticMeshLoader] Failed to parse .obj file. Path=%s",
+                   WidePathToUtf8(Source.NormalizedPath).c_str());
+            return nullptr;
+        }
     }
 
     // 2. 파싱된 데이터를 바탕으로 GPU 버퍼(VRAM) 생성
@@ -143,18 +129,26 @@ UAsset* FStaticMeshLoader::LoadAsset(const FSourceRecord& Source, const FAssetLo
     Engine::Asset::UStaticMesh* NewMeshAsset = new Engine::Asset::UStaticMesh();
     NewMeshAsset->Initialize(Source, MeshResource);
 
-    UE_LOG(Asset, ELogVerbosity::Log,
-           "[StaticMeshLoader] AABB: Max(%f, %f, %f) / Min(%f, %f, %f)",
-           MeshResource->BoundingBox.Max.X, MeshResource->BoundingBox.Max.Y,
-           MeshResource->BoundingBox.Max.Z, MeshResource->BoundingBox.Min.X,
-           MeshResource->BoundingBox.Min.Y, MeshResource->BoundingBox.Min.Z);
+    if (AssetManager && bIsUAsset)
+    {
+        FAssetId Id;
+        Id.Type = EAssetType::StaticMesh;
+        Id.PackageName = WidePathToUtf8(Source.NormalizedPath);
+        const std::filesystem::path FilePath(Source.NormalizedPath);
+        Id.ObjectName = WidePathToUtf8(FilePath.stem().native());
+        AssetManager->RegisterAssetByIdAlias(Id, NewMeshAsset);
+    }
 
     // --- 추가: 서브 메시 개수에 맞춰 머티리얼 슬롯 미리 확보 ---
     const uint32 NumSubMeshes = static_cast<uint32>(MeshResource->SubMeshes.size());
     NewMeshAsset->InitializeMaterialSlots(NumSubMeshes);
 
-    // .mtl 파일 로드 및 매핑
-    if (AssetManager && !MeshResource->MaterialLibraryPath.empty())
+    if (!MaterialAssetPaths.empty())
+    {
+        ApplyMaterialAssetPaths(*NewMeshAsset, MaterialAssetPaths);
+    }
+        // .mtl 파일 로드 및 매핑
+    else if (AssetManager && !MeshResource->MaterialLibraryPath.empty())
     {
         const fs::path ObjFilePath(Source.NormalizedPath);
         const fs::path ObjDir = ObjFilePath.parent_path();
@@ -190,9 +184,8 @@ UAsset* FStaticMeshLoader::LoadAsset(const FSourceRecord& Source, const FAssetLo
         MatParams.ExplicitType = EAssetType::Material;
 
         UAsset* LoadedAsset = AssetManager->Load(WideMtlPath, MatParams);
-        auto*   LoadedMtl = static_cast<Engine::Asset::UMaterial*>(LoadedAsset);
-
-        if (!LoadedMtl)
+        auto*   LoadedLibrary = Cast<Engine::Asset::UMaterialLibrary>(LoadedAsset);
+        if (!LoadedLibrary)
         {
             UE_LOG(Asset, ELogVerbosity::Warning,
                    "[StaticMeshLoader] Failed to load .mtl file. Path=%s",
@@ -200,28 +193,32 @@ UAsset* FStaticMeshLoader::LoadAsset(const FSourceRecord& Source, const FAssetLo
             return NewMeshAsset;
         }
 
+        const auto& MaterialRefs = LoadedLibrary->GetMaterialRefs();
         for (uint32 i = 0; i < NumSubMeshes; ++i)
         {
             const FString& TargetMatName = MeshResource->SubMeshes[i].DefaultMaterialName;
-
-            if (LoadedMtl->GetMaterialData(TargetMatName) != nullptr)
+            auto           RefIt = MaterialRefs.find(TargetMatName);
+            if (RefIt != MaterialRefs.end())
             {
-                NewMeshAsset->SetMaterialSlot(i, LoadedMtl, TargetMatName);
+                if (UAsset* SubMaterialAsset = AssetManager->FindAssetById(RefIt->second))
+                {
+                    if (auto* MaterialInterface =
+                            Cast<Engine::Asset::UMaterialInterface>(SubMaterialAsset))
+                    {
+                        NewMeshAsset->SetMaterialSlot(i, MaterialInterface);
+                        continue;
+                    }
+                }
             }
-            else
-            {
-                UE_LOG(Asset, ELogVerbosity::Warning,
-                       "[StaticMeshLoader] Material '%s' not found in .mtl '%s'",
-                       TargetMatName.c_str(), WidePathToUtf8(WideMtlPath).c_str());
-                // 추후 기본 머터리얼 asset으로 지정 필요
-                NewMeshAsset->SetMaterialSlot(i, nullptr, "");
-            }
+            UE_LOG(Asset, ELogVerbosity::Log,
+                   "[StaticMeshLoader] Material '%s' not found in .mtl '%s'",
+                   TargetMatName.c_str(), WidePathToUtf8(WideMtlPath).c_str());
         }
     }
     return NewMeshAsset;
 }
 
-bool FStaticMeshLoader::ParseObjText(const FSourceRecord& Source, FStaticMeshResource& OutMesh,
+bool FStaticMeshLoader::ParseObjText(const FSourceRecord& Source, FStaticMesh& OutMesh,
                                      TArray<FMeshVertexPNCT>& OutVertices) const
 {
     if (!Source.bFileBytesLoaded || Source.FileBytes.empty())
@@ -274,6 +271,18 @@ bool FStaticMeshLoader::ParseObjText(const FSourceRecord& Source, FStaticMeshRes
             std::from_chars(Token.data(), Token.data() + Token.size(), OutVal);
     };
 
+    // 앞뒤 공백을 제거한 1줄 파싱
+    auto TrimView = [](std::string_view View) -> std::string_view
+    {
+        const size_t First = View.find_first_not_of(" \t\r");
+        if (First == std::string_view::npos)
+        {
+            return {};
+        }
+        const size_t Last = View.find_last_not_of(" \t\r");
+        return View.substr(First, Last - First + 1);
+    };
+
     // --- 메인 파싱 루프 ---
     size_t LineStart = 0;
     while (LineStart < FileView.length())
@@ -324,18 +333,6 @@ bool FStaticMeshLoader::ParseObjText(const FSourceRecord& Source, FStaticMeshRes
         }
         else if (Header == "mtllib")
         {
-            auto TrimView = [](std::string_view View) -> std::string_view
-            {
-                const size_t First = View.find_first_not_of(" \t\r");
-                if (First == std::string_view::npos)
-                {
-                    return {};
-                }
-
-                const size_t Last = View.find_last_not_of(" \t\r");
-                return View.substr(First, Last - First + 1);
-            };
-
             std::string_view MtlFile = TrimView(LineView);
 
             if (MtlFile.empty())
@@ -343,17 +340,15 @@ bool FStaticMeshLoader::ParseObjText(const FSourceRecord& Source, FStaticMeshRes
                 UE_LOG(Asset, ELogVerbosity::Warning,
                        "[StaticMeshLoader] mtllib declared without file name. Path=%s",
                        WidePathToUtf8(Source.NormalizedPath).c_str());
-                return false;
+                continue;
             }
-
             if (!OutMesh.MaterialLibraryPath.empty())
             {
                 UE_LOG(Asset, ELogVerbosity::Warning,
-                       "[StaticMeshLoader] Multiple mtllib declarations are not supported. Path=%s",
+                       "[StaticMeshLoader] Multiple mtllib declarations are not supported. Use first one. Path=%s",
                        WidePathToUtf8(Source.NormalizedPath).c_str());
-                return false;
+                continue;
             }
-
             OutMesh.MaterialLibraryPath = FString(MtlFile);
         }
         else if (Header == "usemtl")
@@ -460,7 +455,7 @@ bool FStaticMeshLoader::ParseObjText(const FSourceRecord& Source, FStaticMeshRes
 }
 
 bool FStaticMeshLoader::CreateBuffers(const TArray<FMeshVertexPNCT>& InVertices,
-                                      FStaticMeshResource&           OutMesh) const
+                                      FStaticMesh&                   OutMesh) const
 {
     // RHI (Render Hardware Interface) 유효성 검사
     if (!RHI || !RHI->GetDevice())
@@ -531,9 +526,124 @@ bool FStaticMeshLoader::CreateBuffers(const TArray<FMeshVertexPNCT>& InVertices,
     return true;
 }
 
-FString FStaticMeshLoader::WidePathToUtf8(const FWString& Path) const
+bool FStaticMeshLoader::ParseUAsset(const FSourceRecord& Source, FStaticMesh& OutMesh,
+                                   TArray<FMeshVertexPNCT>& OutVertices,
+                                   TArray<FString>& OutMaterialAssetPaths) const
 {
-    const fs::path      FilePath(Path);
-    const std::u8string Utf8Path = FilePath.u8string();
-    return FString(reinterpret_cast<const char*>(Utf8Path.data()), Utf8Path.size());
+    FWindowsBinReader Ar(Source.NormalizedPath);
+    if (!Ar.IsValid())
+    {
+        return false;
+    }
+
+    FUAssetBinaryHeader Header;
+    Header.Magic = 0;
+    Header.Version = 0;
+    uint32 TypeValue = 0;
+    Header.AssetType = EUAssetBinaryType::Unknown;
+    Header.SourceHash = 0;
+
+    Ar << Header.Magic;
+    Ar << Header.Version;
+    Ar << TypeValue;
+    Header.AssetType = static_cast<EUAssetBinaryType>(TypeValue);
+    Ar << Header.SourceHash;
+
+    if (Header.Magic != kUAssetMagic || Header.Version != kUAssetVersion ||
+        Header.AssetType != EUAssetBinaryType::StaticMesh)
+    {
+        return false;
+    }
+
+    Ar << OutMesh.VertexCount;
+    Ar << OutMesh.IndexCount;
+    Ar << OutMesh.VertexStride;
+
+    Ar.Serialize(&OutMesh.BoundingBox.Min, sizeof(FVector));
+    Ar.Serialize(&OutMesh.BoundingBox.Max, sizeof(FVector));
+
+    Ar << OutMesh.MaterialLibraryPath;
+
+    uint32 SubMeshCount = 0;
+    Ar << SubMeshCount;
+    OutMesh.SubMeshes.clear();
+    OutMesh.SubMeshes.reserve(SubMeshCount);
+    for (uint32 i = 0; i < SubMeshCount; ++i)
+    {
+        FSubMesh Sub;
+        Ar << Sub.DefaultMaterialName;
+        Ar << Sub.StartIndexLocation;
+        Ar << Sub.IndexCount;
+        OutMesh.SubMeshes.push_back(std::move(Sub));
+    }
+
+    uint32 MaterialPathCount = 0;
+    Ar << MaterialPathCount;
+    OutMaterialAssetPaths.clear();
+    OutMaterialAssetPaths.reserve(MaterialPathCount);
+    for (uint32 i = 0; i < MaterialPathCount; ++i)
+    {
+        FString Path;
+        Ar << Path;
+        OutMaterialAssetPaths.push_back(std::move(Path));
+    }
+
+    SerializeArrayRaw(Ar, OutMesh.CPU_Positions);
+    SerializeArray(Ar, OutMesh.CPU_Indices);
+    SerializeArrayRaw(Ar, OutVertices);
+
+    if (Ar.HasError())
+    {
+        return false;
+    }
+
+    return OutMesh.VertexCount > 0 && OutMesh.IndexCount > 0;
+}
+
+void FStaticMeshLoader::ApplyMaterialAssetPaths(Engine::Asset::UStaticMesh& MeshAsset,
+                                                const TArray<FString>& MaterialAssetPaths) const
+{
+    if (!AssetManager)
+    {
+        return;
+    }
+
+    const uint32 SlotCount = MeshAsset.GetMaterialSlotsSize();
+    const uint32 PathCount = static_cast<uint32>(MaterialAssetPaths.size());
+    const uint32 Count = (SlotCount < PathCount) ? SlotCount : PathCount;
+
+    for (uint32 i = 0; i < Count; ++i)
+    {
+        const FString& PathUtf8 = MaterialAssetPaths[i];
+        if (PathUtf8.empty())
+        {
+            continue;
+        }
+
+        FWString WidePath = NarrowPathToWidePath(PathUtf8);
+        if (WidePath.empty())
+        {
+            UE_LOG(Asset, ELogVerbosity::Warning,
+                   "[StaticMeshLoader] Failed to decode material path. RawPath=%s",
+                   PathUtf8.c_str());
+            continue;
+        }
+
+        FAssetLoadParams MatParams;
+        MatParams.ExplicitType = EAssetType::Material;
+
+        UAsset* LoadedAsset = AssetManager->Load(WidePath, MatParams);
+        if (!LoadedAsset)
+        {
+            UE_LOG(Asset, ELogVerbosity::Warning,
+                   "[StaticMeshLoader] Failed to load material asset. Path=%s",
+                   PathUtf8.c_str());
+            continue;
+        }
+
+        if (auto* MaterialInterface = Cast<Engine::Asset::UMaterialInterface>(LoadedAsset))
+        {
+            MeshAsset.SetMaterialSlot(i, MaterialInterface);
+        }
+    }
 }

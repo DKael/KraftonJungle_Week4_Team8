@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <unordered_set>
 
 #include "Asset.h"
 #include "Asset/AssetLoader/AssetLoader.h"
@@ -317,6 +318,80 @@ UAsset* UAssetManager::Load(const FWString& Path, const FAssetLoadParams& Params
     return NewAsset;
 }
 
+UAsset* UAssetManager::RegisterAssetById(const FAssetId& Id, UAsset* Asset)
+{
+    if (Asset == nullptr)
+    {
+        return nullptr;
+    }
+
+    AssetIdAssets.insert_or_assign(Id, std::unique_ptr<UAsset>(Asset));
+    return Asset;
+}
+
+void UAssetManager::RegisterAssetByIdAlias(const FAssetId& Id, UAsset* Asset)
+{
+    if (Asset == nullptr)
+    {
+        return;
+    }
+    AssetIdAliases.insert_or_assign(Id, Asset);
+}
+
+UAsset* UAssetManager::FindAssetById(const FAssetId& Id) const
+{
+    auto It = AssetIdAssets.find(Id);
+    if (It != AssetIdAssets.end())
+    {
+        return It->second.get();
+    }
+
+    auto AliasIt = AssetIdAliases.find(Id);
+    return (AliasIt != AssetIdAliases.end()) ? AliasIt->second : nullptr;
+}
+
+bool UAssetManager::UnregisterAssetById(const FAssetId& Id)
+{
+    const bool bRemovedOwned = AssetIdAssets.erase(Id) > 0;
+    const bool bRemovedAlias = AssetIdAliases.erase(Id) > 0;
+    return bRemovedOwned || bRemovedAlias;
+}
+
+TArray<UAsset*> UAssetManager::GetAssetsByType(EAssetType Type) const
+{
+    TArray<UAsset*> Result;
+    std::unordered_set<UAsset*> Seen;
+    for (const auto& Pair : AssetIdAssets)
+    {
+        if (Pair.first.Type == Type)
+        {
+            UAsset* Asset = Pair.second.get();
+            if (Asset && Seen.insert(Asset).second)
+            {
+                Result.push_back(Asset);
+            }
+        }
+    }
+    for (const auto& Pair : AssetIdAliases)
+    {
+        if (Pair.first.Type == Type)
+        {
+            UAsset* Asset = Pair.second;
+            if (Asset && Seen.insert(Asset).second)
+            {
+                Result.push_back(Asset);
+            }
+        }
+    }
+    return Result;
+}
+
+UAsset* UAssetManager::FindLoadedAsset(const FAssetKey& Key) const
+{
+    auto It = LoadedAssets.find(Key);
+    return (It != LoadedAssets.end()) ? It->second.get() : nullptr;
+}
+
 void UAssetManager::Invalidate(const FWString& Path)
 {
     const FWString NormalizedPath = NormalizeAssetPath(Path);
@@ -338,12 +413,40 @@ void UAssetManager::Invalidate(const FWString& Path)
             ++It;
         }
     }
+
+    for (auto It = AssetIdAssets.begin(); It != AssetIdAssets.end();)
+    {
+        const UAsset* Asset = It->second.get();
+        if (Asset != nullptr && Asset->GetPath() == NormalizedPath)
+        {
+            It = AssetIdAssets.erase(It);
+        }
+        else
+        {
+            ++It;
+        }
+    }
+
+    for (auto It = AssetIdAliases.begin(); It != AssetIdAliases.end();)
+    {
+        const UAsset* Asset = It->second;
+        if (Asset != nullptr && Asset->GetPath() == NormalizedPath)
+        {
+            It = AssetIdAliases.erase(It);
+        }
+        else
+        {
+            ++It;
+        }
+    }
 }
 
 void UAssetManager::Clear()
 {
     SourceCache.Clear();
     LoadedAssets.clear();
+    AssetIdAssets.clear();
+    AssetIdAliases.clear();
 }
 
 IAssetLoader* UAssetManager::FindLoader(const FWString& Path, const FAssetLoadParams& Params) const

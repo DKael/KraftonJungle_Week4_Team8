@@ -5,15 +5,12 @@
 #include "Engine/Component/Core/ComponentProperty.h"
 #include "SceneIO/SceneAssetPath.h"
 #include "Asset/MaterialInterface.h"
+#include "Asset/Material.h"
 #include <algorithm>
 #include <filesystem>
 
 namespace Engine::Component
 {
-    UStaticMeshComponent::UStaticMeshComponent() : StaticMesh(nullptr) {}
-
-    UStaticMeshComponent::~UStaticMeshComponent() {}
-
     EBasicMeshType UStaticMeshComponent::GetBasicMeshType() const
     {
         return EBasicMeshType::None;
@@ -36,9 +33,8 @@ namespace Engine::Component
             return;
         }
 
-        const TArray<Engine::Asset::FMaterialSlot>& SlotRef = StaticMesh->GetMaterialSlots();
-
-        for (int32 idx = 0; idx < static_cast<int32>(SlotRef.size()); ++idx)
+        const uint32 SlotCount = StaticMesh->GetMaterialSlotsSize();
+        for (uint32 idx = 0; idx < SlotCount; ++idx)
         {
             const FString  PropertyName = "StaticMeshMaterialSlot_" + std::to_string(idx);
             const FWString DisplayName = L"Material " + std::to_wstring(idx);
@@ -47,20 +43,131 @@ namespace Engine::Component
                 PropertyName, DisplayName,
                 [this, idx]() -> FString
                 {
-                    if (this->StaticMesh == nullptr)
+                    if (StaticMesh == nullptr)
                     {
                         return "";
                     }
 
-                    return this->GetSubMaterialName(idx);
+                    Asset::UMaterialInterface* CurrentMat = GetMaterial(idx);
+                    if (CurrentMat && CurrentMat->IsValidLowLevel())
+                    {
+                        if (auto* Material = Cast<Asset::UMaterial>(CurrentMat))
+                        {
+                            const FString Name = Material->GetMaterialName();
+                            return Name.empty() ? "None" : Name;
+                        }
+                        const FString Name = CurrentMat->GetAssetName();
+                        return Name.empty() ? "None" : Name;
+                    }
+                    return "";
                 },
-                [this, idx](const FString& InSubMaterial)
+                [this, idx](const FString& InMaterialName)
                 {
-                    this->SetSubMaterialName(idx, InSubMaterial);
+                    if (StaticMesh == nullptr)
+                    {
+                        return;
+                    }
+
+                    if (InMaterialName.empty() || InMaterialName == "None")
+                    {
+                        SetMaterial(idx, nullptr);
+                        return;
+                    }
+
+                    if (CachedAssetManager)
+                    {
+                        const TArray<UAsset*> AllMaterials =
+                            CachedAssetManager->GetAssetsByType(EAssetType::Material);
+                        for (UAsset* Asset : AllMaterials)
+                        {
+                            if (auto* Mat = Cast<Asset::UMaterialInterface>(Asset))
+                            {
+                                FString Name;
+                                if (auto* BaseMat = Cast<Asset::UMaterial>(Mat))
+                                {
+                                    Name = BaseMat->GetMaterialName();
+                                }
+                                else
+                                {
+                                    Name = Mat->GetAssetName();
+                                }
+                                if (!Name.empty() && Name == InMaterialName)
+                                {
+                                    SetMaterial(idx, Mat);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
+                    const TArray<Asset::UMaterialInterface*>& Slots = StaticMesh->GetMaterialSlots();
+                    for (auto* Mat : Slots)
+                    {
+                        if (Mat && Mat->IsValidLowLevel())
+                        {
+                            const FString Name =
+                                Cast<Asset::UMaterial>(Mat) ? Cast<Asset::UMaterial>(Mat)->GetMaterialName()
+                                                            : Mat->GetAssetName();
+                            if (!Name.empty() && Name == InMaterialName)
+                            {
+                                SetMaterial(idx, Mat);
+                                return;
+                            }
+                        }
+                    }
                 },
                 [this]() -> TArray<FString>
                 {
-                    return this->GetAvailableSubMaterialNames();
+                    TArray<FString> Options;
+                    if (StaticMesh == nullptr)
+                    {
+                        return Options;
+                    }
+
+                    TSet<FString> Unique;
+
+                    if (CachedAssetManager)
+                    {
+                        const TArray<UAsset*> AllMaterials =
+                            CachedAssetManager->GetAssetsByType(EAssetType::Material);
+                        for (UAsset* Asset : AllMaterials)
+                        {
+                            if (auto* Mat = Cast<Asset::UMaterialInterface>(Asset))
+                            {
+                                FString Name;
+                                if (auto* Material = Cast<Asset::UMaterial>(Mat))
+                                {
+                                    Name = Material->GetMaterialName();
+                                }
+                                else
+                                {
+                                    Name = Mat->GetAssetName();
+                                }
+                                if (!Name.empty() && Unique.find(Name) == Unique.end())
+                                {
+                                    Unique.insert(Name);
+                                    Options.push_back(Name);
+                                }
+                            }
+                        }
+                        return Options;
+                    }
+
+                    for (auto* Mat : StaticMesh->GetMaterialSlots())
+                    {
+                        if (Mat && Mat->IsValidLowLevel())
+                        {
+                            const FString Name =
+                                Cast<Asset::UMaterial>(Mat) ? Cast<Asset::UMaterial>(Mat)->GetMaterialName()
+                                                            : Mat->GetAssetName();
+                            if (!Name.empty() && Unique.find(Name) == Unique.end())
+                            {
+                                Unique.insert(Name);
+                                Options.push_back(Name);
+                            }
+                        }
+                    }
+                    return Options;
                 },
                 FComponentPropertyOptions{});
         }
@@ -73,6 +180,7 @@ namespace Engine::Component
 
     void UStaticMeshComponent::ResolveAssetReferences(UAssetManager* InAssetManager)
     {
+        CachedAssetManager = InAssetManager;
         if (InAssetManager == nullptr || PendingMeshPath.empty())
         {
             return;
@@ -98,30 +206,20 @@ namespace Engine::Component
     void UStaticMeshComponent::SetStaticMesh(Asset::UStaticMesh* InStaticMesh)
     {
         StaticMesh = InStaticMesh;
-        if (StaticMesh && StaticMesh->GetRenderResource())
+        if (StaticMesh)
         {
-            uint32 NumSubMeshes = static_cast<uint32>(StaticMesh->GetRenderResource()->SubMeshes.size());
-            InitializeMaterialSlots(NumSubMeshes);
-        }
-        else if (StaticMesh)
-        {
-            InitializeMaterialSlots(StaticMesh->GetNumSections());
+            uint32 NumSlots = StaticMesh->GetMaterialSlotsSize();
+            if (NumSlots == 0 && StaticMesh->GetRenderResource())
+            {
+                NumSlots = static_cast<uint32>(StaticMesh->GetRenderResource()->SubMeshes.size());
+            }
+            InitializeMaterialSlots(NumSlots);
         }
         else
         {
             InitializeMaterialSlots(0);
         }
 
-        OverrideSubMaterialNames.clear();
-        OverrideSubMaterialNames.resize(GetNumMaterials());
-        if (StaticMesh != nullptr)
-        {
-            for (uint32 Index = 0; Index < GetNumMaterials(); ++Index)
-            {
-                const Asset::FMaterialSlot* Slot = StaticMesh->GetMaterialSlot(Index);
-                OverrideSubMaterialNames[Index] = (Slot != nullptr) ? Slot->SubMaterialName : "";
-            }
-        }
         OnTransformChanged();
     }
 
@@ -135,56 +233,6 @@ namespace Engine::Component
     {
         PendingMeshPath = InPath;
         StaticMesh = nullptr;
-        OverrideSubMaterialNames.clear();
-    }
-
-    FString UStaticMeshComponent::GetSubMaterialName(uint32 Index) const
-    {
-        if (Index < OverrideSubMaterialNames.size())
-        {
-            return OverrideSubMaterialNames[Index];
-        }
-
-        if (StaticMesh)
-        {
-            return StaticMesh->GetSubMaterialName(Index);
-        }
-
-        return UMeshComponent::GetSubMaterialName(Index);
-    }
-
-    void UStaticMeshComponent::SetSubMaterialName(uint32 Index, const FString& InSubMaterialName)
-    {
-        if (Index < OverrideSubMaterialNames.size())
-        {
-            OverrideSubMaterialNames[Index] = InSubMaterialName;
-        }
-    }
-
-    TArray<FString> UStaticMeshComponent::GetAvailableSubMaterialNames() const
-    {
-        TArray<FString> Names;
-        if (StaticMesh == nullptr)
-        {
-            return Names;
-        }
-
-        const TArray<Asset::FMaterialSlot>& Slots = StaticMesh->GetMaterialSlots();
-        Names.reserve(Slots.size());
-        for (const auto& Slot : Slots)
-        {
-            if (Slot.SubMaterialName.empty())
-            {
-                continue;
-            }
-
-            if (std::find(Names.begin(), Names.end(), Slot.SubMaterialName) == Names.end())
-            {
-                Names.push_back(Slot.SubMaterialName);
-            }
-        }
-
-        return Names;
     }
 
     bool UStaticMeshComponent::GetLocalTriangles(TArray<Geometry::FTriangle>& OutTriangles) const
@@ -195,7 +243,7 @@ namespace Engine::Component
             return false;
         }
 
-        const FStaticMeshResource* Resource = StaticMesh->GetRenderResource();
+        const FStaticMesh* Resource = StaticMesh->GetRenderResource();
         if (Resource->CPU_Positions.empty() || Resource->CPU_Indices.size() < 3)
         {
             return false;
@@ -251,11 +299,13 @@ namespace Engine::Component
 
     uint32 UStaticMeshComponent::GetNumMaterials() const
     {
+        const uint32 OverrideCount = UMeshComponent::GetNumMaterials();
         if (StaticMesh)
         {
-            return StaticMesh->GetNumSections();
+            const uint32 BaseCount = StaticMesh->GetMaterialSlotsSize();
+            return std::max(BaseCount, OverrideCount);
         }
-        return UMeshComponent::GetNumMaterials();
+        return OverrideCount;
     }
 
     REGISTER_CLASS(Engine::Component, UStaticMeshComponent)

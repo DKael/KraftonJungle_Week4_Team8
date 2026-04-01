@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Core/Containers/Array.h"
+#include "Core/CoreMinimal.h"
+
 #include "Core/HAL/PlatformTypes.h"
 #include "Renderer/D3D11/D3D11Common.h"
 #include "Renderer/Types/RenderItem.h" // FStaticMeshRenderItem 등
@@ -12,7 +13,7 @@ class FSceneView;
 
 // MeshBatchRenderer와 동일한 패스 파라미터를 사용합니다.
 struct FMeshPassParams;
-struct FMaterialData;
+struct FMaterial;
 
 class FD3D11StaticMeshRenderer
 {
@@ -43,7 +44,7 @@ class FD3D11StaticMeshRenderer
     void BindSolidRasterizer();
     void BindWireframeRasterizer();
 
-    void BindMaterial(const FMaterialData* InMaterialData);
+    void BindMaterial(const FMaterial* InMaterialData);
     void BindDefaultMaterial();
 
   private:

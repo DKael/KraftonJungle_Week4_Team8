@@ -310,43 +310,35 @@ namespace
                 bChanged = true;
             }
 
-            if (Context->ContentIndex)
+            if (Context->AssetManager)
             {
-                TArray<const FContentBrowserItem*> MaterialItems;
-                CollectAssetItemsByType(Context->ContentIndex->GetSnapshot().RootFolder,
-                                        EContentBrowserItemType::Material, MaterialItems);
+                TArray<UAsset*> MaterialAssets =
+                    Context->AssetManager->GetAssetsByType(EAssetType::Material);
 
-                for (const auto* Item : MaterialItems)
+                uint32 Index = 0;
+                for (UAsset* Asset : MaterialAssets)
                 {
-                    // 로드된 에셋의 이름(절대경로)과 인덱스의 절대경로를 비교하여 선택 상태 표시
-                    // 1. std::wstring을 FString(UTF-8)으로 안전하게 변환
-                    FString ItemAbsPath = Engine::Component::UMeshComponent::WidePathToUtf8(
-                        Item->AbsolutePath.wstring());
-
-                    // 2. 비교 연산 (타입이 FString 또는 std::wstring으로 통일되어야 함)
-                    // 만약 CurrentMat->GetPath() 가 std::wstring을 반환한다면:
-                    bool bSelected =
-                        (CurrentMat && CurrentMat->GetPath() == Item->AbsolutePath.wstring());
-
-                    // 만약 CurrentMat->GetPath() 가 FString을 반환한다면:
-                    // bool bSelected = (CurrentMat && CurrentMat->GetPath() == ItemAbsPath);
-
-                    if (ImGui::Selectable(Item->VirtualPath.c_str(), bSelected))
+                    auto* Mat = Cast<Engine::Asset::UMaterialInterface>(Asset);
+                    if (!Mat)
                     {
-                        if (Context->AssetManager)
-                        {
-                            ::FAssetLoadParams Params;
-                            Params.ExplicitType = ::EAssetType::Material;
-                            // 인덱스가 가진 검증된 절대 경로를 직접 사용하여 로드
-                            UAsset* Loaded =
-                                Context->AssetManager->Load(Item->AbsolutePath.wstring(), Params);
-                            if (auto* NewMat = Cast<Engine::Asset::UMaterialInterface>(Loaded))
-                            {
-                                MeshComp->SetMaterial(SlotIndex, NewMat);
-                                bChanged = true;
-                            }
-                        }
+                        ++Index;
+                        continue;
                     }
+
+                    FString DisplayName = Mat->GetAssetName();
+                    if (DisplayName.empty())
+                    {
+                        DisplayName = "Material";
+                    }
+
+                    std::string Label = DisplayName + "##Mat_" + std::to_string(Index);
+                    bool bSelected = (CurrentMat == Mat);
+                    if (ImGui::Selectable(Label.c_str(), bSelected))
+                    {
+                        MeshComp->SetMaterial(SlotIndex, Mat);
+                        bChanged = true;
+                    }
+                    ++Index;
                 }
             }
             ImGui::EndCombo();
@@ -355,30 +347,32 @@ namespace
         // --- 머티리얼 세부 속성 조절 UI 추가 ---
         if (CurrentMat && CurrentMat->IsValidLowLevel())
         {
-            if (auto* Mat = Cast<Engine::Asset::UMaterial>(CurrentMat))
+            if (auto* SubMat = Cast<Engine::Asset::UMaterial>(CurrentMat))
             {
-                FString SubMatName = MeshComp->GetSubMaterialName(SlotIndex);
-                if (auto* Data = Mat->GetMaterialDataMutable(SubMatName))
+                if (auto* Data = SubMat->GetMaterialDataMutable())
                 {
+                    ImGui::Indent(20.0f);
+
                     ImGui::TextUnformatted("UV Scroll Speed");
                     ImGui::PushID("UVScrollSpeed");
-                      
                     float SpeedX = Data->UVScrollSpeed.X;
                     float SpeedY = Data->UVScrollSpeed.Y;
 
                     ImGui::AlignTextToFramePadding();
-                    ImGui::TextUnformatted("X:"); ImGui::SameLine();
-                    ImGui::SetNextItemWidth(60.0f);
+                    ImGui::TextUnformatted("X:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(70.0f);
                     if (ImGui::DragFloat("##X", &SpeedX, 0.001f, -10.0f, 10.0f, "%.3f"))
                     {
                         Data->UVScrollSpeed.X = SpeedX;
                         bChanged = true;
                     }
 
-                    ImGui::SameLine(250.0f);
+                    ImGui::SameLine(150.0f);
                     ImGui::AlignTextToFramePadding();
-                    ImGui::TextUnformatted("Y:"); ImGui::SameLine();
-                    ImGui::SetNextItemWidth(60.0f);
+                    ImGui::TextUnformatted("Y:");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(70.0f);
                     if (ImGui::DragFloat("##Y", &SpeedY, 0.001f, -10.0f, 10.0f, "%.3f"))
                     {
                         Data->UVScrollSpeed.Y = SpeedY;
@@ -637,21 +631,13 @@ namespace
                 {
                     if (auto* Mat = Cast<Engine::Asset::UMaterial>(CurrentMat))
                     {
-                        FString SubMatName = MeshComp->GetSubMaterialName(SlotIdx);
+                        auto* Data = Mat->GetMaterialDataMutable();
                         
                         // --- 인스턴스별 개별 조절 로직 (오버라이드 우선) ---
-                        FVector2 CurrentSpeed;
-                        if (MeshComp->HasUVScrollSpeedOverride(SlotIdx))
+                        FVector2 CurrentSpeed = FVector2::ZeroVector;
+                        if (Data)
                         {
-                            CurrentSpeed = MeshComp->GetUVScrollSpeedOverride(SlotIdx);
-                        }
-                        else if (auto* DefaultData = Mat->GetMaterialData(SubMatName))
-                        {
-                            CurrentSpeed = DefaultData->UVScrollSpeed;
-                        }
-                        else
-                        {
-                            CurrentSpeed = FVector2::ZeroVector;
+                            CurrentSpeed = Data->UVScrollSpeed;
                         }
 
                         // Indent(20.0f) 제거하여 Material 0 와 정렬을 맞춤
@@ -669,8 +655,11 @@ namespace
                         ImGui::SetNextItemWidth(60.0f);
                         if (ImGui::DragFloat("##X", &SpeedX, 0.001f, -10.0f, 10.0f, "%.3f"))
                         {
-                            MeshComp->SetUVScrollSpeedOverride(SlotIdx, FVector2(SpeedX, SpeedY));
-                            bChanged = true;
+                            if (Data)
+                            {
+                                Data->UVScrollSpeed = FVector2(SpeedX, SpeedY);
+                                bChanged = true;
+                            }
                         }
 
                         // Y 부분 (간격 조정: 220 -> 240)
@@ -680,8 +669,11 @@ namespace
                         ImGui::SetNextItemWidth(60.0f);
                         if (ImGui::DragFloat("##Y", &SpeedY, 0.001f, -10.0f, 10.0f, "%.3f"))
                         {
-                            MeshComp->SetUVScrollSpeedOverride(SlotIdx, FVector2(SpeedX, SpeedY));
-                            bChanged = true;
+                            if (Data)
+                            {
+                                Data->UVScrollSpeed = FVector2(SpeedX, SpeedY);
+                                bChanged = true;
+                            }
                         }
                     }
                 }

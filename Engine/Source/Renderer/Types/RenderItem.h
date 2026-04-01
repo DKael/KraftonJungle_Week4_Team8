@@ -68,22 +68,15 @@ struct FRenderPlacement
 
 enum class ETextLayoutMode : uint8
 {
-    Natural = 0, // 글자 크기는 TextScale이 결정
-    FitToBox = 1 // transform scale을 박스 크기로 해석
+    Natural = 0, // 湲???ш린??TextScale??寃곗젙
+    FitToBox = 1 // transform scale??諛뺤뒪 ?ш린濡??댁꽍
 };
 
-
-struct FStaticMeshMaterialBinding
-{
-    Engine::Asset::UMaterialInterface* Material = nullptr;
-    FString                            SubMaterialName;
-};
 struct FStaticMeshRenderItem
 {
     FMatrix World = FMatrix::Identity;
-    const FStaticMeshResource* RenderResource = nullptr;
-    TArray<FStaticMeshMaterialBinding>         MaterialBindings;
-    TMap<uint32, FVector2>                     UVScrollOverrides; // [슬롯 인덱스, 속도]
+    const FStaticMesh* RenderResource = nullptr;
+    TArray<Engine::Asset::UMaterialInterface*> Materials;
     Geometry::FAABB                            WorldAABB;
     FRenderItemState                           State;
 };
