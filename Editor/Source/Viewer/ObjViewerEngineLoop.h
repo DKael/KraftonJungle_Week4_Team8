@@ -66,7 +66,8 @@ private:
     float TargetPitch   = 0.f;
     float TargetYaw     = 0.f;
 
-    FVector ModelScale  = FVector(1.f, 1.f, 1.f);
+    FVector ModelScale    = FVector(1.f, 1.f, 1.f);
+    float   AbsoluteScale = 1.0f;
 
     // Mouse drag state
     bool  bRMBDown   = false;

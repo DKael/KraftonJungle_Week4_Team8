@@ -223,6 +223,25 @@ void FViewerImGui::DrawScalePanel(const FViewerUIInput& Input, FViewerUIOutput& 
     bChanged |= ImGui::DragFloat("##SZ", &ScaleFactor[2], 0.001f, 0.00001f, 100.f, "%.4f");
     ImGui::PopStyleColor(3);
 
+    // Absolute (uniform) scale
+    ImGui::NewLine();
+    ImGui::SameLine(0.f, ImGui::GetStyle().ItemSpacing.x);
+    ImGui::PushStyleColor(ImGuiCol_Text,           ImVec4(0.9f, 0.6f, 1.f, 1.f));
+    ImGui::TextUnformatted("Abs");
+    ImGui::PopStyleColor();
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        ImVec4(0.22f, 0.10f, 0.35f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.35f, 0.18f, 0.50f, 1.f));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  ImVec4(0.45f, 0.22f, 0.65f, 1.f));
+    ImGui::SetNextItemWidth(DragW);
+    float AbsScale = Input.AbsoluteScale;
+    if (ImGui::DragFloat("##SABS", &AbsScale, 0.001f, 0.00001f, 100.f, "%.4f"))
+    {
+        Out.AbsoluteScale  = AbsScale;
+        Out.bIsScaleChanged = true;
+    }
+    ImGui::PopStyleColor(3);
+
     // Uniform scale reset button
     ImGui::Spacing();
     if (ImGui::Button("Reset", ImVec2(-1.f, 0.f)))

@@ -36,6 +36,7 @@ namespace ViewerUI
         EViewModeIndex CurrentViewMode   = EViewModeIndex::VMI_Lit;
         bool           bConvertCoords    = false;  // LH Y-up → Z-up
         FVector        ModelScale        = FVector(1.f, 1.f, 1.f);
+        float          AbsoluteScale     = 1.f;
     };
 
     struct FViewerUIOutput
@@ -47,6 +48,7 @@ namespace ViewerUI
         bool           bConvertCoords    = false;
         FVector        ModelScale        = FVector(1.f, 1.f, 1.f);
         bool           bIsScaleChanged   = false;
+        float          AbsoluteScale     = 1.f;
     };
 
     class FViewerImGui
